@@ -39,21 +39,25 @@ step time: <span id="world-step-time"></span></pre>
 
     <div id='chart_div'></div>
 
-    <script src="https://www.google.com/jsapi"></script>
+
+    <!--
+    <script src="//google.com/jsapi"></script>
+    -->
     <script src="Box2dWeb-2.1.a.3.js"></script>
     <script src="box2dweb-util.js"></script>
     <script src="demo.js"></script>
     <script src="mixer.js"></script>
 
-     <script>
-       var _chartData = [];
-       var chart = null;
+    <script>
+      /*
+      var _chartData = [];
+      var chart = null;
 
-       var options = {
-         legend: { position: 'none' },
-         'hAxis.logScale': true,
-         'vAxis.logScale': true,
-       };
+      var options = {
+        legend: { position: 'none' },
+        'hAxis.logScale': true,
+        'vAxis.logScale': true,
+      };
 
       google.load("visualization", "1", {packages:["corechart"]});
       google.setOnLoadCallback(drawChart);
@@ -69,6 +73,7 @@ step time: <span id="world-step-time"></span></pre>
         var data = google.visualization.arrayToDataTable(_chartData, true);
         chart.draw(data, options);
       }
+      */
     </script>
 
   </body>

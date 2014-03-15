@@ -120,7 +120,7 @@ Demo.prototype.step = function(timestamp) {
 
   // TODO I didn't find this explicitly in the Dart version, but
   // this is needed to match the Dart version
-  this.ctx.scale(1.5, -1.5);
+  this.ctx.scale(1.5, -1.5); // FIXME(slightlyoff): drops ball count in half!
   this.world.DrawDebugData();
   this.ctx.restore();
   this.frameCount++;
