@@ -95,12 +95,6 @@ var Box2D = {
       cls.prototype.constructor = tmpCtr;
    },
 
-   generateCallback: function generateCallback(context, cb) {
-      return function () {
-         cb.apply(context, arguments);
-      };
-   },
-
    NVector: function NVector(length) {
       length = +((typeof length == "undefined") ? 0 : length);
       var tmp = [];
@@ -1219,7 +1213,8 @@ Box2D.Collision.b2DynamicTreeBroadPhase = Box2D.inherit_({
     var __this = this;
     this.m_pairCount = 0;
     var i = 0, queryProxy, QueryCallback;
-    for (i = 0; i < this.m_moveBuffer.length; ++i) {
+    var l = this.m_moveBuffer.length;
+    for (i = 0; i < l; ++i) {
        queryProxy = this.m_moveBuffer[i];
 
        // FIXME(slightlyoff): too much alloc!
@@ -4978,6 +4973,7 @@ b2ContactManager.prototype.b2ContactManager = function () {
    this.m_contactListener = b2ContactListener.b2_defaultListener;
    this.m_contactFactory = new b2ContactFactory(this.m_allocator);
    this.m_broadPhase = new b2DynamicTreeBroadPhase();
+   this._addPair = this.AddPair.bind(this);
 }
 b2ContactManager.prototype.AddPair = function (proxyUserDataA, proxyUserDataB) {
    var fixtureA = (proxyUserDataA instanceof b2Fixture ? proxyUserDataA : null);
@@ -5032,7 +5028,7 @@ b2ContactManager.prototype.AddPair = function (proxyUserDataA, proxyUserDataB) {
    return;
 }
 b2ContactManager.prototype.FindNewContacts = function () {
-   this.m_broadPhase.UpdatePairs(Box2D.generateCallback(this, this.AddPair));
+   this.m_broadPhase.UpdatePairs(this._addPair);
 }
 b2ContactManager.prototype.Destroy = function (c) {
    var fixtureA = c.GetFixtureA();
