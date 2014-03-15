@@ -33,36 +33,40 @@ step time: <span id="world-step-time"></span></pre>
 
     <canvas id='demo-canvas' style="border: 1px solid black"></canvas>
 
+    <br>
+    <button id='stop_button'>Stop</button>
     <button id='chart_button'>Chart</button>
 
     <div id='chart_div'></div>
-    
-    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-    <script type="text/javascript" src="Box2dWeb-2.1.a.3.js"></script>
-    <script type="text/javascript" src="box2dweb-util.js"></script>
-    <script type="text/javascript" src="demo.js"></script>
-    <script type="text/javascript" src="mixer.js"></script>
 
-     <script type="text/javascript">
-     window._chartData = [];
-     chart = null;
+    <script src="https://www.google.com/jsapi"></script>
+    <script src="Box2dWeb-2.1.a.3.js"></script>
+    <script src="box2dweb-util.js"></script>
+    <script src="demo.js"></script>
+    <script src="mixer.js"></script>
 
-     var options = {
-       legend: { position: 'none' },
-       'hAxis.logScale': true,
-       'vAxis.logScale': true,
-     };
+     <script>
+       var _chartData = [];
+       var chart = null;
+
+       var options = {
+         legend: { position: 'none' },
+         'hAxis.logScale': true,
+         'vAxis.logScale': true,
+       };
 
       google.load("visualization", "1", {packages:["corechart"]});
       google.setOnLoadCallback(drawChart);
       function drawChart() {
-        chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));
+        chart = new google.visualization.ScatterChart(
+                  document.getElementById('chart_div')
+                );
       }
 
       function updateChart() {
-        var data = google.visualization.arrayToDataTable(window._chartData, true);
+        var data = google.visualization.arrayToDataTable(_chartData, true);
 
-        var data = google.visualization.arrayToDataTable(window._chartData, true);
+        var data = google.visualization.arrayToDataTable(_chartData, true);
         chart.draw(data, options);
       }
     </script>

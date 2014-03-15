@@ -59,7 +59,7 @@ function Demo(name, gravity) {
 
   //final double _viewportScale;
 
-  this._viewportScale = this._VIEWPORT_SCALE;
+  // this._viewportScale = this._VIEWPORT_SCALE;
 
   /** The drawing canvas. */
   //CanvasElement canvas;
@@ -101,8 +101,10 @@ function Demo(name, gravity) {
 
   this.worldStepTime = null;
 
+  this._onStep = this.step.bind(this);
 }
 
+Demo.prototype.stopped = false;
 Demo.prototype.step = function(timestamp) {
   //_stopwatch.reset();
   var before = performance.now();
@@ -123,20 +125,16 @@ Demo.prototype.step = function(timestamp) {
   this.ctx.restore();
   this.frameCount++;
 
-  var that = this;
-  window.requestAnimationFrame(function(ts) {
-    that.step(ts);
-  });
+  if (!this.stopped) {
+    window.requestAnimationFrame(this._onStep);
+  }
 }
 
 /**
  * Starts running the demo as an animation using an animation scheduler.
  */
 Demo.prototype.runAnimation = function() {
-  var that = this;
-  window.requestAnimationFrame(function(ts) {
-    that.step(ts);
-  });
+  window.requestAnimationFrame(this._onStep);
 }
 
 /**
@@ -166,7 +164,7 @@ Demo.prototype.initializeAnimation = function() {
     debugDraw.SetSprite(this.ctx);
     //debugDraw.SetDrawScale(this._viewportScale);
     debugDraw.SetDrawScale(3);
-    debugDraw.SetFillAlpha(0.3);
+    // debugDraw.SetFillAlpha(0.3);
     debugDraw.SetLineThickness(1.0);
     debugDraw.SetFlags(b2DebugDraw.e_shapeBit);
 
@@ -177,15 +175,14 @@ Demo.prototype.initializeAnimation = function() {
     this.fpsCounter = document.querySelector("#fps-counter");
     this.worldStepTime = document.querySelector("#world-step-time");
 
-    var that = this;
+    // FIXME(slightlyoff): collapse into rAF logic in _onStep()
+    window.setInterval(function() {
+      this.fpsCounter.innerHTML = this.frameCount;
+      this.frameCount = 0;
+    }.bind(this), 1000);
 
     window.setInterval(function() {
-      that.fpsCounter.innerHTML = that.frameCount.toString();
-      that.frameCount = 0;
-    }, 1000);
-
-    window.setInterval(function() {
-      if (that.elapsedUs == null) return;
-      that.worldStepTime.innerHTML = (that.elapsedUs / 1000) + " ms";
-    }, 200);
+      if (this.elapsedUs == null) return;
+      this.worldStepTime.innerHTML = (this.elapsedUs / 1000) + " ms";
+    }.bind(this), 200);
   }

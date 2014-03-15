@@ -195,6 +195,11 @@ function main() {
 
   var button = document.querySelector('#chart_button');
   button.addEventListener('click', function(e) { mixer._doStats() });
+
+  var stopButton = document.querySelector('#stop_button');
+  stopButton.addEventListener('click', function(e) {
+    mixer.stopped = !(mixer.stopped);
+  });
 }
 
 main();
