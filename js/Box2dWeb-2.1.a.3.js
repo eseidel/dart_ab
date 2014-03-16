@@ -227,10 +227,6 @@ Box2D.Common.Math.b2Math = {
 };
 
 
-
-var IBroadPhase =
-Box2D.Collision.IBroadPhase = 'IBroadPhase';
-
 var b2AABB =
 Box2D.Collision.b2AABB = Box2D.inherit_({
    initialize: function () {
@@ -1375,6 +1371,7 @@ Box2D.Collision.b2DynamicTreeBroadPhase = Box2D.inherit_({
   ComparePairs: function (pair1, pair2) { return 0; },
 });
 
+var IBroadPhase = Box2D.Collision.IBroadPhase = 'IBroadPhase';
 b2DynamicTreeBroadPhase.__implements = {};
 b2DynamicTreeBroadPhase.__implements[IBroadPhase] = true;
 
@@ -2244,7 +2241,6 @@ Box2D.Collision.Features = Box2D.inherit_({
   },
 });
 
-// TODO(slightlyoff): inherit_()
 var b2Shape =
 Box2D.Collision.Shapes.b2Shape = Box2D.inherit_({
   initialize: function() {
@@ -2597,7 +2593,6 @@ Box2D.Collision.Shapes.b2MassData = Box2D.inherit_({
   }
 });
 
-// TODO(slightlyoff): inherit_()
 var b2PolygonShape =
 Box2D.Collision.Shapes.b2PolygonShape = Box2D.inherit_({
   extends: b2Shape,
@@ -3069,7 +3064,6 @@ b2PolygonShape.ComputeOBB = function (obb, vs, count) {
   }
 }
 
-// TODO(slightlyoff): inherit_()
 var b2Color =
 Box2D.Common.b2Color = Box2D.inherit_({
   initialize: function (rr, gg, bb) {
@@ -3098,7 +3092,6 @@ Box2D.Common.b2Color = Box2D.inherit_({
   },
 });
 
-// TODO(slightlyoff): inherit_()
 var b2Settings =
 Box2D.Common.b2Settings = {
   b2MixFriction: function (friction1, friction2) {
@@ -3139,12 +3132,101 @@ Box2D.Common.b2Settings = {
   b2_angularSleepTolerance: 2.0 / 180 * Math.PI,
 };
 
-// TODO(slightlyoff): inherit_()
-function b2Mat22() {
-   b2Mat22.b2Mat22.apply(this, arguments);
-   if (this.constructor === b2Mat22) this.b2Mat22.apply(this, arguments);
+var b2Mat22 =
+Box2D.Common.Math.b2Mat22 = Box2D.inherit_({
+  initialize: function() {
+    this.col1 = new b2Vec2();
+    this.col2 = new b2Vec2();
+    this.SetIdentity();
+  },
+  Set: function(angle) {
+    var c = Math.cos(angle);
+    var s = Math.sin(angle);
+    this.col1.x = c;
+    this.col2.x = (-s);
+    this.col1.y = s;
+    this.col2.y = c;
+  },
+  SetVV: function(c1, c2) {
+    this.col1.SetV(c1);
+    this.col2.SetV(c2);
+  },
+  Copy: function() {
+    var mat = new b2Mat22();
+    mat.SetM(this);
+    return mat;
+  },
+  SetM: function(m) {
+    this.col1.SetV(m.col1);
+    this.col2.SetV(m.col2);
+  },
+  AddM: function(m) {
+    this.col1.x += m.col1.x;
+    this.col1.y += m.col1.y;
+    this.col2.x += m.col2.x;
+    this.col2.y += m.col2.y;
+  },
+  SetIdentity: function() {
+    this.col1.x = 1;
+    this.col2.x = 0;
+    this.col1.y = 0;
+    this.col2.y = 1;
+  },
+  SetZero: function() {
+    this.col1.x = 0;
+    this.col2.x = 0;
+    this.col1.y = 0;
+    this.col2.y = 0;
+  },
+  GetAngle: function() {
+    return Math.atan2(this.col1.y, this.col1.x);
+  },
+  GetInverse: function(out) {
+    var a = this.col1.x;
+    var b = this.col2.x;
+    var c = this.col1.y;
+    var d = this.col2.y;
+    var det = a * d - b * c;
+    if (det != 0) {
+      det = 1 / det;
+    }
+    out.col1.x = det * d;
+    out.col2.x = (-det * b);
+    out.col1.y = (-det * c);
+    out.col2.y = det * a;
+    return out;
+  },
+  Solve: function(out, bX, bY) {
+    var a11 = this.col1.x;
+    var a12 = this.col2.x;
+    var a21 = this.col1.y;
+    var a22 = this.col2.y;
+    var det = a11 * a22 - a12 * a21;
+    if (det != 0) {
+      det = 1 / det;
+    }
+    out.x = det * (a22 * bX - a12 * bY);
+    out.y = det * (a11 * bY - a21 * bX);
+    return out;
+  },
+  Abs: function() {
+    this.col1.Abs();
+    this.col2.Abs();
+  },
+});
+
+b2Mat22.FromAngle = function(angle) {
+  var mat = new b2Mat22();
+  mat.Set(angle);
+  return mat;
 };
-Box2D.Common.Math.b2Mat22 = b2Mat22;
+
+b2Mat22.FromVV = function(c1, c2) {
+  var mat = new b2Mat22();
+  mat.SetVV(c1, c2);
+  return mat;
+};
+
 
 // TODO(slightlyoff): inherit_()
 function b2Mat33() {
@@ -3690,101 +3772,7 @@ Box2D.postDefs.push(function () {
   Box2D.Collision.Shapes.b2PolygonShape.s_mat = new b2Mat22();
 });
 
-b2Mat22.b2Mat22 = function () {
-  this.col1 = new b2Vec2();
-  this.col2 = new b2Vec2();
-};
-b2Mat22.prototype.b2Mat22 = function () {
-  this.SetIdentity();
-}
-b2Mat22.FromAngle = function (angle) {
-  if (angle === undefined) angle = 0;
-  var mat = new b2Mat22();
-  mat.Set(angle);
-  return mat;
-}
-b2Mat22.FromVV = function (c1, c2) {
-  var mat = new b2Mat22();
-  mat.SetVV(c1, c2);
-  return mat;
-}
-b2Mat22.prototype.Set = function (angle) {
-  if (angle === undefined) angle = 0;
-  var c = Math.cos(angle);
-  var s = Math.sin(angle);
-  this.col1.x = c;
-  this.col2.x = (-s);
-  this.col1.y = s;
-  this.col2.y = c;
-}
-b2Mat22.prototype.SetVV = function (c1, c2) {
-  this.col1.SetV(c1);
-  this.col2.SetV(c2);
-}
-b2Mat22.prototype.Copy = function () {
-  var mat = new b2Mat22();
-  mat.SetM(this);
-  return mat;
-}
-b2Mat22.prototype.SetM = function (m) {
-  this.col1.SetV(m.col1);
-  this.col2.SetV(m.col2);
-}
-b2Mat22.prototype.AddM = function (m) {
-  this.col1.x += m.col1.x;
-  this.col1.y += m.col1.y;
-  this.col2.x += m.col2.x;
-  this.col2.y += m.col2.y;
-}
-b2Mat22.prototype.SetIdentity = function () {
-  this.col1.x = 1;
-  this.col2.x = 0;
-  this.col1.y = 0;
-  this.col2.y = 1;
-}
-b2Mat22.prototype.SetZero = function () {
-  this.col1.x = 0;
-  this.col2.x = 0;
-  this.col1.y = 0;
-  this.col2.y = 0;
-}
-b2Mat22.prototype.GetAngle = function () {
-  return Math.atan2(this.col1.y, this.col1.x);
-}
-b2Mat22.prototype.GetInverse = function (out) {
-  var a = this.col1.x;
-  var b = this.col2.x;
-  var c = this.col1.y;
-  var d = this.col2.y;
-  var det = a * d - b * c;
-  if (det != 0) {
-    det = 1 / det;
-  }
-  out.col1.x = det * d;
-  out.col2.x = (-det * b);
-  out.col1.y = (-det * c);
-  out.col2.y = det * a;
-  return out;
-}
-b2Mat22.prototype.Solve = function (out, bX, bY) {
-  if (bX === undefined) bX = 0;
-  if (bY === undefined) bY = 0;
-  var a11 = this.col1.x;
-  var a12 = this.col2.x;
-  var a21 = this.col1.y;
-  var a22 = this.col2.y;
-  var det = a11 * a22 - a12 * a21;
-  if (det != 0) {
-    det = 1 / det;
-  }
-  out.x = det * (a22 * bX - a12 * bY);
-  out.y = det * (a11 * bY - a21 * bX);
-  return out;
-}
-b2Mat22.prototype.Abs = function () {
-  this.col1.Abs();
-  this.col2.Abs();
-}
+
 b2Mat33.b2Mat33 = function () {
   this.col1 = new b2Vec3();
   this.col2 = new b2Vec3();
