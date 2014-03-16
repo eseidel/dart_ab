@@ -2967,8 +2967,6 @@ b2PolygonShape.ComputeOBB = function (obb, vs, count) {
 }
 Box2D.Collision.Shapes.b2PolygonShape = b2PolygonShape;
 
-Box2D.Common.b2internal = 'Box2D.Common.b2internal';
-
 // TODO(slightlyoff): inherit_()
 var b2Color =
 Box2D.Common.b2Color = Box2D.inherit_({
