@@ -119,6 +119,7 @@ var Box2D = {
    Collision: { Shapes: {} },
    Common: { Math: {} },
    Dynamics: { Contacts: {}, Controllers: {}, Joints: {} },
+   Shapes: {},
 };
 
 //#TODO remove assignments from global namespace
@@ -1869,7 +1870,6 @@ Box2D.Collision.b2SimplexCache = Box2D.inherit_({
   },
 });
 
-// TODO(slightlyoff): inherit_()
 var b2SimplexVertex =
 Box2D.Collision.b2SimplexVertex = Box2D.inherit_({
   // FIXME(slightlyoff): initialize()?
@@ -1990,7 +1990,6 @@ var b2TimeOfImpact = {
   },
 };
 
-// TODO(slightlyoff): inherit_()
 var b2WorldManifold =
 Box2D.Collision.b2WorldManifold = Box2D.inherit_({
   initialize: function () {
@@ -2098,7 +2097,6 @@ Box2D.Collision.ClipVertex = Box2D.inherit_({
   },
 });
 
-// TODO(slightlyoff): inherit_()
 var Features =
 Box2D.Collision.Features = Box2D.inherit_({
   initialize: function () {
@@ -2143,25 +2141,341 @@ Box2D.Collision.Features = Box2D.inherit_({
 });
 
 // TODO(slightlyoff): inherit_()
-function b2CircleShape() {
-   b2CircleShape.b2CircleShape.apply(this, arguments);
-   if (this.constructor === b2CircleShape) this.b2CircleShape.apply(this, arguments);
+var b2Shape =
+Box2D.Collision.Shapes.b2Shape = Box2D.inherit_({
+  initialize: function() {
+    this.m_type = b2Shape.e_unknownShape;
+    this.m_radius = b2Settings.b2_linearSlop;
+  },
+  Copy: function() { return null; },
+  Set: function(other) { this.m_radius = other.m_radius; },
+  GetType: function() { return this.m_type; },
+  TestPoint: function(xf, p) { return false; },
+  RayCast: function(output, input, transform) { return false; },
+  ComputeAABB: function(aabb, xf) {},
+  ComputeMass: function(massData, density) {},
+  ComputeSubmergedArea: function(normal, offset, xf, c) { return 0; },
+});
+b2Shape.TestOverlap = function (shape1, transform1, shape2, transform2) {
+  var input = new b2DistanceInput();
+  input.proxyA = new b2DistanceProxy();
+  input.proxyA.Set(shape1);
+  input.proxyB = new b2DistanceProxy();
+  input.proxyB.Set(shape2);
+  input.transformA = transform1;
+  input.transformB = transform2;
+  input.useRadii = true;
+  var simplexCache = new b2SimplexCache();
+  simplexCache.count = 0;
+  var output = new b2DistanceOutput();
+  b2Distance.Distance(output, simplexCache, input);
+  return output.distance < 10 * Number.MIN_VALUE;
 };
-Box2D.Collision.Shapes.b2CircleShape = b2CircleShape;
+// FIXME(slightlyoff): remove when inheritance is reformed
+b2Shape.b2Shape =
+b2Shape.prototype.b2Shape = function() {
+  this.m_type = b2Shape.e_unknownShape;
+  this.m_radius = b2Settings.b2_linearSlop;
+};
 
-// TODO(slightlyoff): inherit_()
-function b2EdgeChainDef() {
-   b2EdgeChainDef.b2EdgeChainDef.apply(this, arguments);
-   if (this.constructor === b2EdgeChainDef) this.b2EdgeChainDef.apply(this, arguments);
-};
-Box2D.Collision.Shapes.b2EdgeChainDef = b2EdgeChainDef;
+var b2CircleShape =
+Box2D.Collision.Shapes.b2CircleShape = Box2D.inherit_({
+  extends: b2Shape,
+  initialize: function (radius) {
+    b2Shape.call(this);
+    this.m_type = b2Shape.e_circleShape;
+    this.m_p = new b2Vec2();
+    this.m_radius = radius;
+  },
+  Copy: function() {
+    var s = new b2CircleShape();
+    s.Set(this);
+    return s;
+  },
+  Set: function(other) {
+    b2Shape.prototype.Set.call(this, other);
+    if (Box2D.is(other, b2CircleShape)) {
+      this.m_p.SetV(other.m_p);
+    }
+  },
+  TestPoint: function(transform, p) {
+    var tMat = transform.R;
+    var dX = transform.position.x + (tMat.col1.x * this.m_p.x + tMat.col2.x * this.m_p.y);
+    var dY = transform.position.y + (tMat.col1.y * this.m_p.x + tMat.col2.y * this.m_p.y);
+    dX = p.x - dX;
+    dY = p.y - dY;
+    return (dX * dX + dY * dY) <= this.m_radius * this.m_radius;
+  },
+  RayCast: function(output, input, transform) {
+    var tMat = transform.R;
+    var positionX = transform.position.x + (tMat.col1.x * this.m_p.x + tMat.col2.x * this.m_p.y);
+    var positionY = transform.position.y + (tMat.col1.y * this.m_p.x + tMat.col2.y * this.m_p.y);
+    var sX = input.p1.x - positionX;
+    var sY = input.p1.y - positionY;
+    var b = (sX * sX + sY * sY) - this.m_radius * this.m_radius;
+    var rX = input.p2.x - input.p1.x;
+    var rY = input.p2.y - input.p1.y;
+    var c = (sX * rX + sY * rY);
+    var rr = (rX * rX + rY * rY);
+    var sigma = c * c - rr * b;
+    if (sigma < 0 || rr < Number.MIN_VALUE) {
+      return false;
+    }
+    var a = (-(c + Math.sqrt(sigma)));
+    if (0 <= a && a <= input.maxFraction * rr) {
+      a /= rr;
+      output.fraction = a;
+      output.normal.x = sX + a * rX;
+      output.normal.y = sY + a * rY;
+      output.normal.Normalize();
+      return true;
+    }
+    return false;
+  },
+  ComputeAABB: function(aabb, transform) {
+    var tMat = transform.R;
+    var pX = transform.position.x + (tMat.col1.x * this.m_p.x + tMat.col2.x * this.m_p.y);
+    var pY = transform.position.y + (tMat.col1.y * this.m_p.x + tMat.col2.y * this.m_p.y);
+    aabb.lowerBound.Set(pX - this.m_radius, pY - this.m_radius);
+    aabb.upperBound.Set(pX + this.m_radius, pY + this.m_radius);
+  },
+  ComputeMass: function(massData, density) {
+    if (density === undefined) density = 0;
+    massData.mass = density * b2Settings.b2_pi * this.m_radius * this.m_radius;
+    massData.center.SetV(this.m_p);
+    massData.I = massData.mass * (0.5 * this.m_radius * this.m_radius + (this.m_p.x * this.m_p.x + this.m_p.y * this.m_p.y));
+  },
+  ComputeSubmergedArea: function(normal, offset, xf, c) {
+    if (offset === undefined) offset = 0;
+    var p = b2Math.MulX(xf, this.m_p);
+    var l = (-(b2Math.Dot(normal, p) - offset));
+    if (l < (-this.m_radius) + Number.MIN_VALUE) {
+      return 0;
+    }
+    if (l > this.m_radius) {
+      c.SetV(p);
+      return Math.PI * this.m_radius * this.m_radius;
+    }
+    var r2 = this.m_radius * this.m_radius;
+    var l2 = l * l;
+    var area = r2 * (Math.asin(l / this.m_radius) + Math.PI / 2) + l * Math.sqrt(r2 - l2);
+    var com = (-2 / 3 * Math.pow(r2 - l2, 1.5) / area);
+    c.x = p.x + normal.x * com;
+    c.y = p.y + normal.y * com;
+    return area;
+  },
+  GetLocalPosition: function() {
+    return this.m_p;
+  },
+  SetLocalPosition: function(position) {
+    this.m_p.SetV(position);
+  },
+  GetRadius: function() {
+    return this.m_radius;
+  },
+  SetRadius: function(radius) {
+    if (radius === undefined) radius = 0;
+    this.m_radius = radius;
+  },
+});
 
-// TODO(slightlyoff): inherit_()
-function b2EdgeShape() {
-   b2EdgeShape.b2EdgeShape.apply(this, arguments);
-   if (this.constructor === b2EdgeShape) this.b2EdgeShape.apply(this, arguments);
-};
-Box2D.Collision.Shapes.b2EdgeShape = b2EdgeShape;
+var b2EdgeChainDef =
+Box2D.Collision.Shapes.b2EdgeChainDef = Box2D.inherit_({
+  initialize: function() {
+    this.vertexCount = 0;
+    this.isALoop = true;
+    this.vertices = [];
+  }
+});
+
+var b2EdgeShape =
+Box2D.Collision.Shapes.b2EdgeShape = Box2D.inherit_({
+  extends: b2Shape,
+  initialize: function (v1, v2) {
+    b2Shape.call(this);
+    console.log("b2EdgeShape");
+    this.m_type = b2Shape.e_edgeShape;
+    this.s_supportVec = new b2Vec2();
+    this.m_v1 = v1 || new b2Vec2();
+    this.m_v2 = v2 || new b2Vec2();
+    this.m_coreV1 = new b2Vec2();
+    this.m_coreV2 = new b2Vec2();
+    this.m_normal = new b2Vec2();
+    this.m_direction = new b2Vec2();
+    this.m_cornerDir1 = new b2Vec2();
+    this.m_cornerDir2 = new b2Vec2();
+    this.m_prevEdge = null;
+    this.m_nextEdge = null;
+    this.m_direction.Set(this.m_v2.x - this.m_v1.x, this.m_v2.y - this.m_v1.y);
+    this.m_length = this.m_direction.Normalize();
+    this.m_normal.Set(this.m_direction.y, (-this.m_direction.x));
+    this.m_coreV1.Set((-b2Settings.b2_toiSlop * (this.m_normal.x - this.m_direction.x)) + this.m_v1.x, (-b2Settings.b2_toiSlop * (this.m_normal.y - this.m_direction.y)) + this.m_v1.y);
+    this.m_coreV2.Set((-b2Settings.b2_toiSlop * (this.m_normal.x + this.m_direction.x)) + this.m_v2.x, (-b2Settings.b2_toiSlop * (this.m_normal.y + this.m_direction.y)) + this.m_v2.y);
+    this.m_cornerDir1 = this.m_normal;
+    this.m_cornerDir2.Set((-this.m_normal.x), (-this.m_normal.y));
+  },
+});
+b2EdgeShape.prototype.TestPoint = function (transform, p) {
+  return false;
+}
+b2EdgeShape.prototype.RayCast = function (output, input, transform) {
+  var tMat;
+  var rX = input.p2.x - input.p1.x;
+  var rY = input.p2.y - input.p1.y;
+  tMat = transform.R;
+  var v1X = transform.position.x + (tMat.col1.x * this.m_v1.x + tMat.col2.x * this.m_v1.y);
+  var v1Y = transform.position.y + (tMat.col1.y * this.m_v1.x + tMat.col2.y * this.m_v1.y);
+  var nX = transform.position.y + (tMat.col1.y * this.m_v2.x + tMat.col2.y * this.m_v2.y) - v1Y;
+  var nY = (-(transform.position.x + (tMat.col1.x * this.m_v2.x + tMat.col2.x * this.m_v2.y) - v1X));
+  var k_slop = 100 * Number.MIN_VALUE;
+  var denom = (-(rX * nX + rY * nY));
+  if (denom > k_slop) {
+    var bX = input.p1.x - v1X;
+    var bY = input.p1.y - v1Y;
+    var a = (bX * nX + bY * nY);
+    if (0 <= a && a <= input.maxFraction * denom) {
+      var mu2 = (-rX * bY) + rY * bX;
+      if ((-k_slop * denom) <= mu2 && mu2 <= denom * (1 + k_slop)) {
+        a /= denom;
+        output.fraction = a;
+        var nLen = Math.sqrt(nX * nX + nY * nY);
+        output.normal.x = nX / nLen;
+        output.normal.y = nY / nLen;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+b2EdgeShape.prototype.ComputeAABB = function (aabb, transform) {
+  var tMat = transform.R;
+  var v1X = transform.position.x + (tMat.col1.x * this.m_v1.x + tMat.col2.x * this.m_v1.y);
+  var v1Y = transform.position.y + (tMat.col1.y * this.m_v1.x + tMat.col2.y * this.m_v1.y);
+  var v2X = transform.position.x + (tMat.col1.x * this.m_v2.x + tMat.col2.x * this.m_v2.y);
+  var v2Y = transform.position.y + (tMat.col1.y * this.m_v2.x + tMat.col2.y * this.m_v2.y);
+  if (v1X < v2X) {
+    aabb.lowerBound.x = v1X;
+    aabb.upperBound.x = v2X;
+  }
+  else {
+    aabb.lowerBound.x = v2X;
+    aabb.upperBound.x = v1X;
+  }
+  if (v1Y < v2Y) {
+    aabb.lowerBound.y = v1Y;
+    aabb.upperBound.y = v2Y;
+  }
+  else {
+    aabb.lowerBound.y = v2Y;
+    aabb.upperBound.y = v1Y;
+  }
+}
+b2EdgeShape.prototype.ComputeMass = function (massData, density) {
+  if (density === undefined) density = 0;
+  massData.mass = 0;
+  massData.center.SetV(this.m_v1);
+  massData.I = 0;
+}
+b2EdgeShape.prototype.ComputeSubmergedArea = function (normal, offset, xf, c) {
+  if (offset === undefined) offset = 0;
+  var v0 = new b2Vec2(normal.x * offset, normal.y * offset);
+  var v1 = b2Math.MulX(xf, this.m_v1);
+  var v2 = b2Math.MulX(xf, this.m_v2);
+  var d1 = b2Math.Dot(normal, v1) - offset;
+  var d2 = b2Math.Dot(normal, v2) - offset;
+  if (d1 > 0) {
+    if (d2 > 0) {
+      return 0;
+    }
+    else {
+      v1.x = (-d2 / (d1 - d2) * v1.x) + d1 / (d1 - d2) * v2.x;
+      v1.y = (-d2 / (d1 - d2) * v1.y) + d1 / (d1 - d2) * v2.y;
+    }
+  }
+  else {
+    if (d2 > 0) {
+      v2.x = (-d2 / (d1 - d2) * v1.x) + d1 / (d1 - d2) * v2.x;
+      v2.y = (-d2 / (d1 - d2) * v1.y) + d1 / (d1 - d2) * v2.y;
+    }
+    else {}
+  }
+  c.x = (v0.x + v1.x + v2.x) / 3;
+  c.y = (v0.y + v1.y + v2.y) / 3;
+  return 0.5 * ((v1.x - v0.x) * (v2.y - v0.y) - (v1.y - v0.y) * (v2.x - v0.x));
+}
+b2EdgeShape.prototype.GetLength = function () {
+  return this.m_length;
+}
+b2EdgeShape.prototype.GetVertex1 = function () {
+  return this.m_v1;
+}
+b2EdgeShape.prototype.GetVertex2 = function () {
+  return this.m_v2;
+}
+b2EdgeShape.prototype.GetCoreVertex1 = function () {
+  return this.m_coreV1;
+}
+b2EdgeShape.prototype.GetCoreVertex2 = function () {
+  return this.m_coreV2;
+}
+b2EdgeShape.prototype.GetNormalVector = function () {
+  return this.m_normal;
+}
+b2EdgeShape.prototype.GetDirectionVector = function () {
+  return this.m_direction;
+}
+b2EdgeShape.prototype.GetCorner1Vector = function () {
+  return this.m_cornerDir1;
+}
+b2EdgeShape.prototype.GetCorner2Vector = function () {
+  return this.m_cornerDir2;
+}
+b2EdgeShape.prototype.Corner1IsConvex = function () {
+  return this.m_cornerConvex1;
+}
+b2EdgeShape.prototype.Corner2IsConvex = function () {
+  return this.m_cornerConvex2;
+}
+b2EdgeShape.prototype.GetFirstVertex = function (xf) {
+  var tMat = xf.R;
+  return new b2Vec2(xf.position.x + (tMat.col1.x * this.m_coreV1.x + tMat.col2.x * this.m_coreV1.y), xf.position.y + (tMat.col1.y * this.m_coreV1.x + tMat.col2.y * this.m_coreV1.y));
+}
+b2EdgeShape.prototype.GetNextEdge = function () {
+  return this.m_nextEdge;
+}
+b2EdgeShape.prototype.GetPrevEdge = function () {
+  return this.m_prevEdge;
+}
+b2EdgeShape.prototype.Support = function (xf, dX, dY) {
+  if (dX === undefined) dX = 0;
+  if (dY === undefined) dY = 0;
+  var tMat = xf.R;
+  var v1X = xf.position.x + (tMat.col1.x * this.m_coreV1.x + tMat.col2.x * this.m_coreV1.y);
+  var v1Y = xf.position.y + (tMat.col1.y * this.m_coreV1.x + tMat.col2.y * this.m_coreV1.y);
+  var v2X = xf.position.x + (tMat.col1.x * this.m_coreV2.x + tMat.col2.x * this.m_coreV2.y);
+  var v2Y = xf.position.y + (tMat.col1.y * this.m_coreV2.x + tMat.col2.y * this.m_coreV2.y);
+  if ((v1X * dX + v1Y * dY) > (v2X * dX + v2Y * dY)) {
+    this.s_supportVec.x = v1X;
+    this.s_supportVec.y = v1Y;
+  }
+  else {
+    this.s_supportVec.x = v2X;
+    this.s_supportVec.y = v2Y;
+  }
+  return this.s_supportVec;
+}
+b2EdgeShape.prototype.SetPrevEdge = function (edge, core, cornerDir, convex) {
+  this.m_prevEdge = edge;
+  this.m_coreV1 = core;
+  this.m_cornerDir1 = cornerDir;
+  this.m_cornerConvex1 = convex;
+}
+b2EdgeShape.prototype.SetNextEdge = function (edge, core, cornerDir, convex) {
+  this.m_nextEdge = edge;
+  this.m_coreV2 = core;
+  this.m_cornerDir2 = cornerDir;
+  this.m_cornerConvex2 = convex;
+}
 
 // TODO(slightlyoff): inherit_()
 function b2MassData() {
@@ -2176,12 +2490,6 @@ function b2PolygonShape() {
 };
 Box2D.Collision.Shapes.b2PolygonShape = b2PolygonShape;
 
-// TODO(slightlyoff): inherit_()
-function b2Shape() {
-   b2Shape.b2Shape.apply(this, arguments);
-   if (this.constructor === b2Shape) this.b2Shape.apply(this, arguments);
-};
-Box2D.Collision.Shapes.b2Shape = b2Shape;
 Box2D.Common.b2internal = 'Box2D.Common.b2internal';
 
 // TODO(slightlyoff): inherit_()
@@ -2746,305 +3054,6 @@ Box2D.postDefs.push(function () {
   toi.s_distanceOutput = new b2DistanceOutput();
 });
 
-Box2D.inherit(b2CircleShape, Box2D.Collision.Shapes.b2Shape);
-b2CircleShape.prototype.__super = Box2D.Collision.Shapes.b2Shape.prototype;
-b2CircleShape.b2CircleShape = function () {
-  Box2D.Collision.Shapes.b2Shape.b2Shape.apply(this, arguments);
-  this.m_p = new b2Vec2();
-};
-b2CircleShape.prototype.Copy = function () {
-  var s = new b2CircleShape();
-  s.Set(this);
-  return s;
-}
-b2CircleShape.prototype.Set = function (other) {
-  this.__super.Set.call(this, other);
-  if (Box2D.is(other, b2CircleShape)) {
-    var other2 = (other instanceof b2CircleShape ? other : null);
-    this.m_p.SetV(other2.m_p);
-  }
-}
-b2CircleShape.prototype.TestPoint = function (transform, p) {
-  var tMat = transform.R;
-  var dX = transform.position.x + (tMat.col1.x * this.m_p.x + tMat.col2.x * this.m_p.y);
-  var dY = transform.position.y + (tMat.col1.y * this.m_p.x + tMat.col2.y * this.m_p.y);
-  dX = p.x - dX;
-  dY = p.y - dY;
-  return (dX * dX + dY * dY) <= this.m_radius * this.m_radius;
-}
-b2CircleShape.prototype.RayCast = function (output, input, transform) {
-  var tMat = transform.R;
-  var positionX = transform.position.x + (tMat.col1.x * this.m_p.x + tMat.col2.x * this.m_p.y);
-  var positionY = transform.position.y + (tMat.col1.y * this.m_p.x + tMat.col2.y * this.m_p.y);
-  var sX = input.p1.x - positionX;
-  var sY = input.p1.y - positionY;
-  var b = (sX * sX + sY * sY) - this.m_radius * this.m_radius;
-  var rX = input.p2.x - input.p1.x;
-  var rY = input.p2.y - input.p1.y;
-  var c = (sX * rX + sY * rY);
-  var rr = (rX * rX + rY * rY);
-  var sigma = c * c - rr * b;
-  if (sigma < 0 || rr < Number.MIN_VALUE) {
-    return false;
-  }
-  var a = (-(c + Math.sqrt(sigma)));
-  if (0 <= a && a <= input.maxFraction * rr) {
-    a /= rr;
-    output.fraction = a;
-    output.normal.x = sX + a * rX;
-    output.normal.y = sY + a * rY;
-    output.normal.Normalize();
-    return true;
-  }
-  return false;
-}
-b2CircleShape.prototype.ComputeAABB = function (aabb, transform) {
-  var tMat = transform.R;
-  var pX = transform.position.x + (tMat.col1.x * this.m_p.x + tMat.col2.x * this.m_p.y);
-  var pY = transform.position.y + (tMat.col1.y * this.m_p.x + tMat.col2.y * this.m_p.y);
-  aabb.lowerBound.Set(pX - this.m_radius, pY - this.m_radius);
-  aabb.upperBound.Set(pX + this.m_radius, pY + this.m_radius);
-}
-b2CircleShape.prototype.ComputeMass = function (massData, density) {
-  if (density === undefined) density = 0;
-  massData.mass = density * b2Settings.b2_pi * this.m_radius * this.m_radius;
-  massData.center.SetV(this.m_p);
-  massData.I = massData.mass * (0.5 * this.m_radius * this.m_radius + (this.m_p.x * this.m_p.x + this.m_p.y * this.m_p.y));
-}
-b2CircleShape.prototype.ComputeSubmergedArea = function (normal, offset, xf, c) {
-  if (offset === undefined) offset = 0;
-  var p = b2Math.MulX(xf, this.m_p);
-  var l = (-(b2Math.Dot(normal, p) - offset));
-  if (l < (-this.m_radius) + Number.MIN_VALUE) {
-    return 0;
-  }
-  if (l > this.m_radius) {
-    c.SetV(p);
-    return Math.PI * this.m_radius * this.m_radius;
-  }
-  var r2 = this.m_radius * this.m_radius;
-  var l2 = l * l;
-  var area = r2 * (Math.asin(l / this.m_radius) + Math.PI / 2) + l * Math.sqrt(r2 - l2);
-  var com = (-2 / 3 * Math.pow(r2 - l2, 1.5) / area);
-  c.x = p.x + normal.x * com;
-  c.y = p.y + normal.y * com;
-  return area;
-}
-b2CircleShape.prototype.GetLocalPosition = function () {
-  return this.m_p;
-}
-b2CircleShape.prototype.SetLocalPosition = function (position) {
-  this.m_p.SetV(position);
-}
-b2CircleShape.prototype.GetRadius = function () {
-  return this.m_radius;
-}
-b2CircleShape.prototype.SetRadius = function (radius) {
-  if (radius === undefined) radius = 0;
-  this.m_radius = radius;
-}
-b2CircleShape.prototype.b2CircleShape = function (radius) {
-  if (radius === undefined) radius = 0;
-  this.__super.b2Shape.call(this);
-  this.m_type = b2Shape.e_circleShape;
-  this.m_radius = radius;
-}
-b2EdgeChainDef.b2EdgeChainDef = function () {};
-b2EdgeChainDef.prototype.b2EdgeChainDef = function () {
-  this.vertexCount = 0;
-  this.isALoop = true;
-  this.vertices = [];
-}
-Box2D.inherit(b2EdgeShape, Box2D.Collision.Shapes.b2Shape);
-b2EdgeShape.prototype.__super = Box2D.Collision.Shapes.b2Shape.prototype;
-b2EdgeShape.b2EdgeShape = function () {
-  Box2D.Collision.Shapes.b2Shape.b2Shape.apply(this, arguments);
-  this.s_supportVec = new b2Vec2();
-  this.m_v1 = new b2Vec2();
-  this.m_v2 = new b2Vec2();
-  this.m_coreV1 = new b2Vec2();
-  this.m_coreV2 = new b2Vec2();
-  this.m_normal = new b2Vec2();
-  this.m_direction = new b2Vec2();
-  this.m_cornerDir1 = new b2Vec2();
-  this.m_cornerDir2 = new b2Vec2();
-};
-b2EdgeShape.prototype.TestPoint = function (transform, p) {
-  return false;
-}
-b2EdgeShape.prototype.RayCast = function (output, input, transform) {
-  var tMat;
-  var rX = input.p2.x - input.p1.x;
-  var rY = input.p2.y - input.p1.y;
-  tMat = transform.R;
-  var v1X = transform.position.x + (tMat.col1.x * this.m_v1.x + tMat.col2.x * this.m_v1.y);
-  var v1Y = transform.position.y + (tMat.col1.y * this.m_v1.x + tMat.col2.y * this.m_v1.y);
-  var nX = transform.position.y + (tMat.col1.y * this.m_v2.x + tMat.col2.y * this.m_v2.y) - v1Y;
-  var nY = (-(transform.position.x + (tMat.col1.x * this.m_v2.x + tMat.col2.x * this.m_v2.y) - v1X));
-  var k_slop = 100 * Number.MIN_VALUE;
-  var denom = (-(rX * nX + rY * nY));
-  if (denom > k_slop) {
-    var bX = input.p1.x - v1X;
-    var bY = input.p1.y - v1Y;
-    var a = (bX * nX + bY * nY);
-    if (0 <= a && a <= input.maxFraction * denom) {
-      var mu2 = (-rX * bY) + rY * bX;
-      if ((-k_slop * denom) <= mu2 && mu2 <= denom * (1 + k_slop)) {
-        a /= denom;
-        output.fraction = a;
-        var nLen = Math.sqrt(nX * nX + nY * nY);
-        output.normal.x = nX / nLen;
-        output.normal.y = nY / nLen;
-        return true;
-      }
-    }
-  }
-  return false;
-}
-b2EdgeShape.prototype.ComputeAABB = function (aabb, transform) {
-  var tMat = transform.R;
-  var v1X = transform.position.x + (tMat.col1.x * this.m_v1.x + tMat.col2.x * this.m_v1.y);
-  var v1Y = transform.position.y + (tMat.col1.y * this.m_v1.x + tMat.col2.y * this.m_v1.y);
-  var v2X = transform.position.x + (tMat.col1.x * this.m_v2.x + tMat.col2.x * this.m_v2.y);
-  var v2Y = transform.position.y + (tMat.col1.y * this.m_v2.x + tMat.col2.y * this.m_v2.y);
-  if (v1X < v2X) {
-    aabb.lowerBound.x = v1X;
-    aabb.upperBound.x = v2X;
-  }
-  else {
-    aabb.lowerBound.x = v2X;
-    aabb.upperBound.x = v1X;
-  }
-  if (v1Y < v2Y) {
-    aabb.lowerBound.y = v1Y;
-    aabb.upperBound.y = v2Y;
-  }
-  else {
-    aabb.lowerBound.y = v2Y;
-    aabb.upperBound.y = v1Y;
-  }
-}
-b2EdgeShape.prototype.ComputeMass = function (massData, density) {
-  if (density === undefined) density = 0;
-  massData.mass = 0;
-  massData.center.SetV(this.m_v1);
-  massData.I = 0;
-}
-b2EdgeShape.prototype.ComputeSubmergedArea = function (normal, offset, xf, c) {
-  if (offset === undefined) offset = 0;
-  var v0 = new b2Vec2(normal.x * offset, normal.y * offset);
-  var v1 = b2Math.MulX(xf, this.m_v1);
-  var v2 = b2Math.MulX(xf, this.m_v2);
-  var d1 = b2Math.Dot(normal, v1) - offset;
-  var d2 = b2Math.Dot(normal, v2) - offset;
-  if (d1 > 0) {
-    if (d2 > 0) {
-      return 0;
-    }
-    else {
-      v1.x = (-d2 / (d1 - d2) * v1.x) + d1 / (d1 - d2) * v2.x;
-      v1.y = (-d2 / (d1 - d2) * v1.y) + d1 / (d1 - d2) * v2.y;
-    }
-  }
-  else {
-    if (d2 > 0) {
-      v2.x = (-d2 / (d1 - d2) * v1.x) + d1 / (d1 - d2) * v2.x;
-      v2.y = (-d2 / (d1 - d2) * v1.y) + d1 / (d1 - d2) * v2.y;
-    }
-    else {}
-  }
-  c.x = (v0.x + v1.x + v2.x) / 3;
-  c.y = (v0.y + v1.y + v2.y) / 3;
-  return 0.5 * ((v1.x - v0.x) * (v2.y - v0.y) - (v1.y - v0.y) * (v2.x - v0.x));
-}
-b2EdgeShape.prototype.GetLength = function () {
-  return this.m_length;
-}
-b2EdgeShape.prototype.GetVertex1 = function () {
-  return this.m_v1;
-}
-b2EdgeShape.prototype.GetVertex2 = function () {
-  return this.m_v2;
-}
-b2EdgeShape.prototype.GetCoreVertex1 = function () {
-  return this.m_coreV1;
-}
-b2EdgeShape.prototype.GetCoreVertex2 = function () {
-  return this.m_coreV2;
-}
-b2EdgeShape.prototype.GetNormalVector = function () {
-  return this.m_normal;
-}
-b2EdgeShape.prototype.GetDirectionVector = function () {
-  return this.m_direction;
-}
-b2EdgeShape.prototype.GetCorner1Vector = function () {
-  return this.m_cornerDir1;
-}
-b2EdgeShape.prototype.GetCorner2Vector = function () {
-  return this.m_cornerDir2;
-}
-b2EdgeShape.prototype.Corner1IsConvex = function () {
-  return this.m_cornerConvex1;
-}
-b2EdgeShape.prototype.Corner2IsConvex = function () {
-  return this.m_cornerConvex2;
-}
-b2EdgeShape.prototype.GetFirstVertex = function (xf) {
-  var tMat = xf.R;
-  return new b2Vec2(xf.position.x + (tMat.col1.x * this.m_coreV1.x + tMat.col2.x * this.m_coreV1.y), xf.position.y + (tMat.col1.y * this.m_coreV1.x + tMat.col2.y * this.m_coreV1.y));
-}
-b2EdgeShape.prototype.GetNextEdge = function () {
-  return this.m_nextEdge;
-}
-b2EdgeShape.prototype.GetPrevEdge = function () {
-  return this.m_prevEdge;
-}
-b2EdgeShape.prototype.Support = function (xf, dX, dY) {
-  if (dX === undefined) dX = 0;
-  if (dY === undefined) dY = 0;
-  var tMat = xf.R;
-  var v1X = xf.position.x + (tMat.col1.x * this.m_coreV1.x + tMat.col2.x * this.m_coreV1.y);
-  var v1Y = xf.position.y + (tMat.col1.y * this.m_coreV1.x + tMat.col2.y * this.m_coreV1.y);
-  var v2X = xf.position.x + (tMat.col1.x * this.m_coreV2.x + tMat.col2.x * this.m_coreV2.y);
-  var v2Y = xf.position.y + (tMat.col1.y * this.m_coreV2.x + tMat.col2.y * this.m_coreV2.y);
-  if ((v1X * dX + v1Y * dY) > (v2X * dX + v2Y * dY)) {
-    this.s_supportVec.x = v1X;
-    this.s_supportVec.y = v1Y;
-  }
-  else {
-    this.s_supportVec.x = v2X;
-    this.s_supportVec.y = v2Y;
-  }
-  return this.s_supportVec;
-}
-b2EdgeShape.prototype.b2EdgeShape = function (v1, v2) {
-  this.__super.b2Shape.call(this);
-  this.m_type = b2Shape.e_edgeShape;
-  this.m_prevEdge = null;
-  this.m_nextEdge = null;
-  this.m_v1 = v1;
-  this.m_v2 = v2;
-  this.m_direction.Set(this.m_v2.x - this.m_v1.x, this.m_v2.y - this.m_v1.y);
-  this.m_length = this.m_direction.Normalize();
-  this.m_normal.Set(this.m_direction.y, (-this.m_direction.x));
-  this.m_coreV1.Set((-b2Settings.b2_toiSlop * (this.m_normal.x - this.m_direction.x)) + this.m_v1.x, (-b2Settings.b2_toiSlop * (this.m_normal.y - this.m_direction.y)) + this.m_v1.y);
-  this.m_coreV2.Set((-b2Settings.b2_toiSlop * (this.m_normal.x + this.m_direction.x)) + this.m_v2.x, (-b2Settings.b2_toiSlop * (this.m_normal.y + this.m_direction.y)) + this.m_v2.y);
-  this.m_cornerDir1 = this.m_normal;
-  this.m_cornerDir2.Set((-this.m_normal.x), (-this.m_normal.y));
-}
-b2EdgeShape.prototype.SetPrevEdge = function (edge, core, cornerDir, convex) {
-  this.m_prevEdge = edge;
-  this.m_coreV1 = core;
-  this.m_cornerDir1 = cornerDir;
-  this.m_cornerConvex1 = convex;
-}
-b2EdgeShape.prototype.SetNextEdge = function (edge, core, cornerDir, convex) {
-  this.m_nextEdge = edge;
-  this.m_coreV2 = core;
-  this.m_cornerDir2 = cornerDir;
-  this.m_cornerConvex2 = convex;
-}
 b2MassData.b2MassData = function () {
   this.mass = 0;
   this.center = new b2Vec2(0, 0);
@@ -3526,49 +3535,6 @@ b2PolygonShape.ComputeOBB = function (obb, vs, count) {
 Box2D.postDefs.push(function () {
   Box2D.Collision.Shapes.b2PolygonShape.s_mat = new b2Mat22();
 });
-b2Shape.b2Shape = function () {};
-b2Shape.prototype.Copy = function () {
-  return null;
-}
-b2Shape.prototype.Set = function (other) {
-  this.m_radius = other.m_radius;
-}
-b2Shape.prototype.GetType = function () {
-  return this.m_type;
-}
-b2Shape.prototype.TestPoint = function (xf, p) {
-  return false;
-}
-b2Shape.prototype.RayCast = function (output, input, transform) {
-  return false;
-}
-b2Shape.prototype.ComputeAABB = function (aabb, xf) {}
-b2Shape.prototype.ComputeMass = function (massData, density) {
-  if (density === undefined) density = 0;
-}
-b2Shape.prototype.ComputeSubmergedArea = function (normal, offset, xf, c) {
-  if (offset === undefined) offset = 0;
-  return 0;
-}
-b2Shape.TestOverlap = function (shape1, transform1, shape2, transform2) {
-  var input = new b2DistanceInput();
-  input.proxyA = new b2DistanceProxy();
-  input.proxyA.Set(shape1);
-  input.proxyB = new b2DistanceProxy();
-  input.proxyB.Set(shape2);
-  input.transformA = transform1;
-  input.transformB = transform2;
-  input.useRadii = true;
-  var simplexCache = new b2SimplexCache();
-  simplexCache.count = 0;
-  var output = new b2DistanceOutput();
-  b2Distance.Distance(output, simplexCache, input);
-  return output.distance < 10 * Number.MIN_VALUE;
-}
-b2Shape.prototype.b2Shape = function () {
-  this.m_type = b2Shape.e_unknownShape;
-  this.m_radius = b2Settings.b2_linearSlop;
-}
 Box2D.postDefs.push(function () {
   Box2D.Collision.Shapes.b2Shape.e_unknownShape = parseInt((-1));
   Box2D.Collision.Shapes.b2Shape.e_circleShape = 0;
@@ -6472,8 +6438,8 @@ b2ContactFactory.prototype.InitializeRegisters = function () {
   this.AddType(b2PolyAndEdgeContact.Create, b2PolyAndEdgeContact.Destroy, b2Shape.e_polygonShape, b2Shape.e_edgeShape);
 }
 b2ContactFactory.prototype.Create = function (fixtureA, fixtureB) {
-  var type1 = parseInt(fixtureA.GetType());
-  var type2 = parseInt(fixtureB.GetType());
+  var type1 = fixtureA.GetType();
+  var type2 = fixtureB.GetType();
   var reg = this.m_registers[type1][type2];
   var c;
   if (reg.pool) {
