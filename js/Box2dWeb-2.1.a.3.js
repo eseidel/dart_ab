@@ -125,6 +125,109 @@ var Box2D = {
 //#TODO remove assignments from global namespace
 var Vector = Array;
 var NVector = Box2D.NVector;
+
+var b2Math =
+Box2D.Common.Math.b2Math = {
+  Dot: function(a, b) { return a.x * b.x + a.y * b.y; },
+  CrossVV: function(a, b) { return a.x * b.y - a.y * b.x; },
+  CrossVF: function(a, s) { return new b2Vec2(s * a.y, (-s * a.x)); },
+  CrossFV: function(s, a) { return new b2Vec2((-s * a.y), s * a.x); },
+  MulMV: function(A, v) {
+    return new b2Vec2(A.col1.x * v.x + A.col2.x * v.y,
+                      A.col1.y * v.x + A.col2.y * v.y);
+  },
+  MulTMV: function(A, v) {
+    return new b2Vec2(b2Math.Dot(v, A.col1), b2Math.Dot(v, A.col2));
+  },
+  MulX: function(T, v) {
+    var a = b2Math.MulMV(T.R, v);
+    a.x += T.position.x;
+    a.y += T.position.y;
+    return a;
+  },
+  MulXT: function(T, v) {
+    var a = b2Math.SubtractVV(v, T.position);
+    var tX = (a.x * T.R.col1.x + a.y * T.R.col1.y);
+    a.y = (a.x * T.R.col2.x + a.y * T.R.col2.y);
+    a.x = tX;
+    return a;
+  },
+  AddVV: function(a, b) { return new b2Vec2(a.x + b.x, a.y + b.y); },
+  SubtractVV: function(a, b) { return new b2Vec2(a.x - b.x, a.y - b.y); },
+  Distance: function(a, b) {
+    var cX = a.x - b.x;
+    var cY = a.y - b.y;
+    return Math.sqrt(cX * cX + cY * cY);
+  },
+  DistanceSquared: function(a, b) {
+    var cX = a.x - b.x;
+    var cY = a.y - b.y;
+    return (cX * cX + cY * cY);
+  },
+  MulFV: function(s, a) { return new b2Vec2(s * a.x, s * a.y); },
+  AddMM: function(A, B) {
+    return b2Mat22.FromVV(b2Math.AddVV(A.col1, B.col1),
+                          b2Math.AddVV(A.col2, B.col2));
+  },
+  MulMM: function(A, B) {
+    return b2Mat22.FromVV(b2Math.MulMV(A, B.col1), b2Math.MulMV(A, B.col2));
+  },
+  MulTMM: function(A, B) {
+    var c1 = new b2Vec2(b2Math.Dot(A.col1, B.col1), b2Math.Dot(A.col2, B.col1));
+    var c2 = new b2Vec2(b2Math.Dot(A.col1, B.col2), b2Math.Dot(A.col2, B.col2));
+    var C = b2Mat22.FromVV(c1, c2);
+    return C;
+  },
+  AbsV: function(a) { return new b2Vec2(Math.abs(a.x), Math.abs(a.y)); },
+  AbsM: function(A) {
+    return b2Mat22.FromVV(b2Math.AbsV(A.col1), b2Math.AbsV(A.col2));
+  },
+  MinV: function(a, b) {
+    return new b2Vec2(Math.min(a.x, b.x), Math.min(a.y, b.y));
+  },
+  MaxV: function(a, b) {
+    var c = new b2Vec2(Math.max(a.x, b.x), Math.max(a.y, b.y));
+    return c;
+  },
+  Clamp: function(a, low, high) {
+    return a < low ? low : a > high ? high : a;
+  },
+  ClampV: function(a, low, high) {
+    return b2Math.MaxV(low, b2Math.MinV(a, high));
+  },
+  Swap: function(a, b) {
+    var tmp = a[0];
+    a[0] = b[0];
+    b[0] = tmp;
+  },
+  Random: function () { return Math.random() * 2 - 1; },
+  /*
+  // Unused?
+  RandomRange = function (lo, hi) {
+    if (lo === undefined) lo = 0;
+    if (hi === undefined) hi = 0;
+    var r = Math.random();
+    r = (hi - lo) * r + lo;
+    return r;
+  },
+  */
+  NextPowerOfTwo: function (x) {
+    if (x === undefined) x = 0;
+    x |= (x >> 1) & 0x7FFFFFFF;
+    x |= (x >> 2) & 0x3FFFFFFF;
+    x |= (x >> 4) & 0x0FFFFFFF;
+    x |= (x >> 8) & 0x00FFFFFF;
+    x |= (x >> 16) & 0x0000FFFF;
+    return x + 1;
+  },
+  IsPowerOfTwo: function (x) {
+    var result = x > 0 && (x & (x - 1)) == 0;
+    return result;
+  }
+};
+
+
+
 var IBroadPhase =
 Box2D.Collision.IBroadPhase = 'IBroadPhase';
 
@@ -3583,15 +3686,8 @@ Box2D.postDefs.push(function () {
   toi.s_xfB = new b2Transform();
   toi.s_fcn = new b2SeparationFunction();
   toi.s_distanceOutput = new b2DistanceOutput();
-});
 
-
-Box2D.postDefs.push(function () {
   Box2D.Collision.Shapes.b2PolygonShape.s_mat = new b2Mat22();
-});
-Box2D.postDefs.push(function () {
-  var b2Settings = Box2D.Common.b2Settings;
-
 });
 
 b2Mat22.b2Mat22 = function () {
@@ -3786,106 +3882,6 @@ b2Mat33.prototype.Solve33 = function (out, bX, bY, bZ) {
   out.z = det * (a11 * (a22 * bZ - a32 * bY) + a21 * (a32 * bX - a12 * bZ) + a31 * (a12 * bY - a22 * bX));
   return out;
 }
-
-var b2Math =
-Box2D.Common.Math.b2Math = {
-  Dot: function(a, b) { return a.x * b.x + a.y * b.y; },
-  CrossVV: function(a, b) { return a.x * b.y - a.y * b.x; },
-  CrossVF: function(a, s) { return new b2Vec2(s * a.y, (-s * a.x)); },
-  CrossFV: function(s, a) { return new b2Vec2((-s * a.y), s * a.x); },
-  MulMV: function(A, v) {
-    return new b2Vec2(A.col1.x * v.x + A.col2.x * v.y,
-                      A.col1.y * v.x + A.col2.y * v.y);
-  },
-  MulTMV: function(A, v) {
-    return new b2Vec2(b2Math.Dot(v, A.col1), b2Math.Dot(v, A.col2));
-  },
-  MulX: function(T, v) {
-    var a = b2Math.MulMV(T.R, v);
-    a.x += T.position.x;
-    a.y += T.position.y;
-    return a;
-  },
-  MulXT: function(T, v) {
-    var a = b2Math.SubtractVV(v, T.position);
-    var tX = (a.x * T.R.col1.x + a.y * T.R.col1.y);
-    a.y = (a.x * T.R.col2.x + a.y * T.R.col2.y);
-    a.x = tX;
-    return a;
-  },
-  AddVV: function(a, b) { return new b2Vec2(a.x + b.x, a.y + b.y); },
-  SubtractVV: function(a, b) { return new b2Vec2(a.x - b.x, a.y - b.y); },
-  Distance: function(a, b) {
-    var cX = a.x - b.x;
-    var cY = a.y - b.y;
-    return Math.sqrt(cX * cX + cY * cY);
-  },
-  DistanceSquared: function(a, b) {
-    var cX = a.x - b.x;
-    var cY = a.y - b.y;
-    return (cX * cX + cY * cY);
-  },
-  MulFV: function(s, a) { return new b2Vec2(s * a.x, s * a.y); },
-  AddMM: function(A, B) {
-    return b2Mat22.FromVV(b2Math.AddVV(A.col1, B.col1),
-                          b2Math.AddVV(A.col2, B.col2));
-  },
-  MulMM: function(A, B) {
-    return b2Mat22.FromVV(b2Math.MulMV(A, B.col1), b2Math.MulMV(A, B.col2));
-  },
-  MulTMM: function(A, B) {
-    var c1 = new b2Vec2(b2Math.Dot(A.col1, B.col1), b2Math.Dot(A.col2, B.col1));
-    var c2 = new b2Vec2(b2Math.Dot(A.col1, B.col2), b2Math.Dot(A.col2, B.col2));
-    var C = b2Mat22.FromVV(c1, c2);
-    return C;
-  },
-  AbsV: function(a) { return new b2Vec2(Math.abs(a.x), Math.abs(a.y)); },
-  AbsM: function(A) {
-    return b2Mat22.FromVV(b2Math.AbsV(A.col1), b2Math.AbsV(A.col2));
-  },
-  MinV: function(a, b) {
-    return new b2Vec2(Math.min(a.x, b.x), Math.min(a.y, b.y));
-  },
-  MaxV: function(a, b) {
-    var c = new b2Vec2(Math.max(a.x, b.x), Math.max(a.y, b.y));
-    return c;
-  },
-  Clamp: function(a, low, high) {
-    return a < low ? low : a > high ? high : a;
-  },
-  ClampV: function(a, low, high) {
-    return b2Math.MaxV(low, b2Math.MinV(a, high));
-  },
-  Swap: function(a, b) {
-    var tmp = a[0];
-    a[0] = b[0];
-    b[0] = tmp;
-  },
-  Random: function () { return Math.random() * 2 - 1; },
-  /*
-  // Unused?
-  RandomRange = function (lo, hi) {
-    if (lo === undefined) lo = 0;
-    if (hi === undefined) hi = 0;
-    var r = Math.random();
-    r = (hi - lo) * r + lo;
-    return r;
-  },
-  */
-  NextPowerOfTwo: function (x) {
-    if (x === undefined) x = 0;
-    x |= (x >> 1) & 0x7FFFFFFF;
-    x |= (x >> 2) & 0x3FFFFFFF;
-    x |= (x >> 4) & 0x0FFFFFFF;
-    x |= (x >> 8) & 0x00FFFFFF;
-    x |= (x >> 16) & 0x0000FFFF;
-    return x + 1;
-  },
-  IsPowerOfTwo: function (x) {
-    var result = x > 0 && (x & (x - 1)) == 0;
-    return result;
-  }
-};
 
 Box2D.postDefs.push(function () {
   Box2D.Common.Math.b2Math.b2Vec2_zero = new b2Vec2(0, 0);
