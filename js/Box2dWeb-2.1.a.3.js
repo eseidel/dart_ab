@@ -191,6 +191,7 @@ Box2D.Collision.b2AABB = Box2D.inherit_({
          tmax = Math.min(tmax, t2);
          if (tmin > tmax) return false;
       }
+
       if (absDY < Number.MIN_VALUE) {
          if (pY < this.lowerBound.y || this.upperBound.y < pY) return false;
       } else {
@@ -2889,7 +2890,7 @@ Box2D.Collision.Shapes.b2PolygonShape = Box2D.inherit_({
       this.m_vertices[i] = new b2Vec2();
       this.m_normals[i] = new b2Vec2();
     }
-},
+  },
 });
 
 b2PolygonShape.ComputeCentroid = function (vs, count) {
@@ -2969,11 +2970,32 @@ Box2D.Collision.Shapes.b2PolygonShape = b2PolygonShape;
 Box2D.Common.b2internal = 'Box2D.Common.b2internal';
 
 // TODO(slightlyoff): inherit_()
-function b2Color() {
-   b2Color.b2Color.apply(this, arguments);
-   if (this.constructor === b2Color) this.b2Color.apply(this, arguments);
-};
-Box2D.Common.b2Color = b2Color;
+var b2Color =
+Box2D.Common.b2Color = Box2D.inherit_({
+  initialize: function (rr, gg, bb) {
+    this.Set(rr, gg, bb);
+  },
+  Set: function (rr, gg, bb) {
+    this.r = rr;
+    this.g = gg;
+    this.b = bb;
+  },
+  set r(rr) {
+    // if (rr === undefined) rr = 0;
+    this._r = Box2D.parseUInt(255 * b2Math.Clamp(rr, 0, 1));
+  },
+  set g(gg) {
+    // if (gg === undefined) gg = 0;
+    this._g = Box2D.parseUInt(255 * b2Math.Clamp(gg, 0, 1));
+  },
+  set b(bb) {
+    // if (bb === undefined) bb = 0;
+    this._b = Box2D.parseUInt(255 * b2Math.Clamp(bb, 0, 1));
+  },
+  get color() {
+    return (this._r << 16) | (this._g << 8) | (this._b);
+  },
+});
 
 // TODO(slightlyoff): inherit_()
 function b2Settings() {
@@ -3533,60 +3555,6 @@ Box2D.postDefs.push(function () {
 
 Box2D.postDefs.push(function () {
   Box2D.Collision.Shapes.b2PolygonShape.s_mat = new b2Mat22();
-});
-Box2D.postDefs.push(function () {
-});
-b2Color.b2Color = function () {
-  this._r = 0;
-  this._g = 0;
-  this._b = 0;
-};
-b2Color.prototype.b2Color = function (rr, gg, bb) {
-  if (rr === undefined) rr = 0;
-  if (gg === undefined) gg = 0;
-  if (bb === undefined) bb = 0;
-  this._r = Box2D.parseUInt(255 * b2Math.Clamp(rr, 0, 1));
-  this._g = Box2D.parseUInt(255 * b2Math.Clamp(gg, 0, 1));
-  this._b = Box2D.parseUInt(255 * b2Math.Clamp(bb, 0, 1));
-}
-b2Color.prototype.Set = function (rr, gg, bb) {
-  if (rr === undefined) rr = 0;
-  if (gg === undefined) gg = 0;
-  if (bb === undefined) bb = 0;
-  this._r = Box2D.parseUInt(255 * b2Math.Clamp(rr, 0, 1));
-  this._g = Box2D.parseUInt(255 * b2Math.Clamp(gg, 0, 1));
-  this._b = Box2D.parseUInt(255 * b2Math.Clamp(bb, 0, 1));
-}
-Object.defineProperty(b2Color.prototype, 'r', {
-  enumerable: false,
-  configurable: true,
-  set: function (rr) {
-    if (rr === undefined) rr = 0;
-    this._r = Box2D.parseUInt(255 * b2Math.Clamp(rr, 0, 1));
-  }
-});
-Object.defineProperty(b2Color.prototype, 'g', {
-  enumerable: false,
-  configurable: true,
-  set: function (gg) {
-    if (gg === undefined) gg = 0;
-    this._g = Box2D.parseUInt(255 * b2Math.Clamp(gg, 0, 1));
-  }
-});
-Object.defineProperty(b2Color.prototype, 'b', {
-  enumerable: false,
-  configurable: true,
-  set: function (bb) {
-    if (bb === undefined) bb = 0;
-    this._b = Box2D.parseUInt(255 * b2Math.Clamp(bb, 0, 1));
-  }
-});
-Object.defineProperty(b2Color.prototype, 'color', {
-  enumerable: false,
-  configurable: true,
-  get: function () {
-    return (this._r << 16) | (this._g << 8) | (this._b);
-  }
 });
 b2Settings.b2Settings = function () {};
 b2Settings.b2MixFriction = function (friction1, friction2) {
