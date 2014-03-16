@@ -1633,7 +1633,7 @@ Box2D.Collision.b2SeparationFunction = Box2D.inherit_({
       case b2SeparationFunction.e_faceA:
         return this._e_faceA_Evaluate(transformA, transformB);
       case b2SeparationFunction.e_faceB:
-        return this._e_faceb_Evaluate(transformA, transformB);
+        return this._e_faceB_Evaluate(transformA, transformB);
       default:
         return 0;
     }
