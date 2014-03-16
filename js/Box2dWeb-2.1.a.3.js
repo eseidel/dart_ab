@@ -2965,7 +2965,6 @@ b2PolygonShape.ComputeOBB = function (obb, vs, count) {
     }
   }
 }
-Box2D.Collision.Shapes.b2PolygonShape = b2PolygonShape;
 
 // TODO(slightlyoff): inherit_()
 var b2Color =
@@ -2991,15 +2990,51 @@ Box2D.Common.b2Color = Box2D.inherit_({
     this._b = Box2D.parseUInt(255 * b2Math.Clamp(bb, 0, 1));
   },
   get color() {
+    // FIXME(slightlyoff): bitmasking isn't particularly fast in JS
     return (this._r << 16) | (this._g << 8) | (this._b);
   },
 });
 
 // TODO(slightlyoff): inherit_()
-function b2Settings() {
-   b2Settings.b2Settings.apply(this, arguments);
+var b2Settings =
+Box2D.Common.b2Settings = {
+  b2MixFriction: function (friction1, friction2) {
+    return Math.sqrt(friction1 * friction2);
+  },
+  b2MixRestitution: function (restitution1, restitution2) {
+    return restitution1 > restitution2 ? restitution1 : restitution2;
+  },
+  b2Assert: function (a) {
+    if (!a) { throw "Assertion Failed"; }
+  },
+  VERSION: "2.1alpha",
+  USHRT_MAX: 0x0000ffff,
+  b2_pi: Math.PI,
+  b2_maxManifoldPoints: 2,
+  b2_aabbExtension: 0.1,
+  b2_aabbMultiplier: 2.0,
+  b2_linearSlop: 0.005,
+  // b2_polygonRadius: 2.0 * b2Settings.b2_linearSlop,
+  b2_polygonRadius: 2.0 * 0.005,
+  b2_angularSlop: 2.0 / 180 * Math.PI,
+  // b2_toiSlop: 8.0 * b2Settings.b2_linearSlop,
+  b2_toiSlop: 8.0 * 0.005,
+  b2_maxTOIContactsPerIsland: 32,
+  b2_maxTOIJointsPerIsland: 32,
+  b2_velocityThreshold: 1,
+  b2_maxLinearCorrection: 0.2,
+  b2_maxAngularCorrection: 8.0 / 180 * Math.PI,
+  b2_maxTranslation: 2.0,
+  // b2_maxTranslationSquared: b2Settings.b2_maxTranslation * b2Settings.b2_maxTranslation,
+  b2_maxTranslationSquared: 4,
+  b2_maxRotation: 0.5 * Math.PI,
+  // b2_maxRotationSquared: b2Settings.b2_maxRotation * b2Settings.b2_maxRotation,
+  b2_maxRotationSquared: (0.5 * Math.PI) * (0.5 * Math.PI),
+  b2_contactBaumgarte: 0.2,
+  b2_timeToSleep: 0.5, // FIXME(slightlyoff): figure out how sleep is done
+  b2_linearSleepTolerance: 0.01,
+  b2_angularSleepTolerance: 2.0 / 180 * Math.PI,
 };
-Box2D.Common.b2Settings = b2Settings;
 
 // TODO(slightlyoff): inherit_()
 function b2Mat22() {
@@ -3554,47 +3589,9 @@ Box2D.postDefs.push(function () {
 Box2D.postDefs.push(function () {
   Box2D.Collision.Shapes.b2PolygonShape.s_mat = new b2Mat22();
 });
-b2Settings.b2Settings = function () {};
-b2Settings.b2MixFriction = function (friction1, friction2) {
-  if (friction1 === undefined) friction1 = 0;
-  if (friction2 === undefined) friction2 = 0;
-  return Math.sqrt(friction1 * friction2);
-}
-b2Settings.b2MixRestitution = function (restitution1, restitution2) {
-  if (restitution1 === undefined) restitution1 = 0;
-  if (restitution2 === undefined) restitution2 = 0;
-  return restitution1 > restitution2 ? restitution1 : restitution2;
-}
-b2Settings.b2Assert = function (a) {
-  if (!a) {
-    throw "Assertion Failed";
-  }
-}
 Box2D.postDefs.push(function () {
   var b2Settings = Box2D.Common.b2Settings;
-  b2Settings.VERSION = "2.1alpha";
-  b2Settings.USHRT_MAX = 0x0000ffff;
-  b2Settings.b2_pi = Math.PI;
-  b2Settings.b2_maxManifoldPoints = 2;
-  b2Settings.b2_aabbExtension = 0.1;
-  b2Settings.b2_aabbMultiplier = 2.0;
-  b2Settings.b2_polygonRadius = 2.0 * b2Settings.b2_linearSlop;
-  b2Settings.b2_linearSlop = 0.005;
-  b2Settings.b2_angularSlop = 2.0 / 180 * b2Settings.b2_pi;
-  b2Settings.b2_toiSlop = 8.0 * b2Settings.b2_linearSlop;
-  b2Settings.b2_maxTOIContactsPerIsland = 32;
-  b2Settings.b2_maxTOIJointsPerIsland = 32;
-  b2Settings.b2_velocityThreshold = 1;
-  b2Settings.b2_maxLinearCorrection = 0.2;
-  b2Settings.b2_maxAngularCorrection = 8.0 / 180 * b2Settings.b2_pi;
-  b2Settings.b2_maxTranslation = 2.0;
-  b2Settings.b2_maxTranslationSquared = b2Settings.b2_maxTranslation * b2Settings.b2_maxTranslation;
-  b2Settings.b2_maxRotation = 0.5 * b2Settings.b2_pi;
-  b2Settings.b2_maxRotationSquared = b2Settings.b2_maxRotation * b2Settings.b2_maxRotation;
-  b2Settings.b2_contactBaumgarte = 0.2;
-  b2Settings.b2_timeToSleep = 0.5;
-  b2Settings.b2_linearSleepTolerance = 0.01;
-  b2Settings.b2_angularSleepTolerance = 2.0 / 180 * b2Settings.b2_pi;
+
 });
 
 b2Mat22.b2Mat22 = function () {
