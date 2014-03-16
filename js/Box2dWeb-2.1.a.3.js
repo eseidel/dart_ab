@@ -192,8 +192,7 @@ Box2D.Collision.b2AABB = Box2D.inherit_({
       }
       if (absDY < Number.MIN_VALUE) {
          if (pY < this.lowerBound.y || this.upperBound.y < pY) return false;
-      }
-      else {
+      } else {
          inv_d = 1 / dY;
          t1 = (this.lowerBound.y - pY) * inv_d;
          t2 = (this.upperBound.y - pY) * inv_d;
@@ -290,11 +289,11 @@ b2Collision.ClipSegmentToLine = function (vOut, vIn, normal, offset) {
       if (distance0 > 0) {
          cv2 = vIn[0];
          cv.id = cv2.id;
-      }
-      else {
+      } else {
          cv2 = vIn[1];
          cv.id = cv2.id;
-      }++numOut;
+      }
+      numOut++;
    }
    return numOut;
 };
@@ -812,7 +811,7 @@ b2Distance.Distance = function (output, cache, input) {
     if (duplicate) { break; }
     simplex.m_count++;
   }
-  b2Distance.b2_gjkMaxIters = b2Math.Max(b2Distance.b2_gjkMaxIters, iter);
+  b2Distance.b2_gjkMaxIters = Math.max(b2Distance.b2_gjkMaxIters, iter);
   simplex.GetWitnessPoints(output.pointA, output.pointB);
   output.distance = b2Math.SubtractVV(output.pointA, output.pointB).Length();
   output.iterations = iter;
@@ -962,12 +961,14 @@ Box2D.Collision.b2DynamicTree = Box2D.inherit_({
     if (this.m_root == null) return;
     var stack = new Vector();
     var count = 0;
+    var node;
+    var proceed = true;
     stack[count++] = this.m_root;
     while (count > 0) {
-      var node = stack[--count];
+      node = stack[--count];
       if (node.aabb.TestOverlap(aabb)) {
         if (node.IsLeaf()) {
-          var proceed = callback(node);
+          proceed = callback(node);
           if (!proceed) return;
         } else {
           stack[count++] = node.child1;
@@ -1882,36 +1883,264 @@ Box2D.Collision.b2SimplexVertex = Box2D.inherit_({
   },
 });
 
-// TODO(slightlyoff): inherit_()
-function b2TimeOfImpact() {
-   b2TimeOfImpact.b2TimeOfImpact.apply(this, arguments);
+var b2TimeOfImpact = {
+  TimeOfImpact: function (input) {
+    ++b2TimeOfImpact.b2_toiCalls;
+    var proxyA = input.proxyA;
+    var proxyB = input.proxyB;
+    var sweepA = input.sweepA;
+    var sweepB = input.sweepB;
+    b2Settings.b2Assert(sweepA.t0 == sweepB.t0);
+    b2Settings.b2Assert(1 - sweepA.t0 > Number.MIN_VALUE);
+    var radius = proxyA.m_radius + proxyB.m_radius;
+    var tolerance = input.tolerance;
+    var alpha = 0;
+    var k_maxIterations = 1000;
+    var iter = 0;
+    var target = 0;
+    b2TimeOfImpact.s_cache.count = 0;
+    b2TimeOfImpact.s_distanceInput.useRadii = false;
+    for (;;) {
+      sweepA.GetTransform(b2TimeOfImpact.s_xfA, alpha);
+      sweepB.GetTransform(b2TimeOfImpact.s_xfB, alpha);
+      b2TimeOfImpact.s_distanceInput.proxyA = proxyA;
+      b2TimeOfImpact.s_distanceInput.proxyB = proxyB;
+      b2TimeOfImpact.s_distanceInput.transformA = b2TimeOfImpact.s_xfA;
+      b2TimeOfImpact.s_distanceInput.transformB = b2TimeOfImpact.s_xfB;
+      b2Distance.Distance(b2TimeOfImpact.s_distanceOutput, b2TimeOfImpact.s_cache, b2TimeOfImpact.s_distanceInput);
+      if (b2TimeOfImpact.s_distanceOutput.distance <= 0) {
+        alpha = 1;
+        break;
+      }
+      b2TimeOfImpact.s_fcn.Initialize(b2TimeOfImpact.s_cache, proxyA, b2TimeOfImpact.s_xfA, proxyB, b2TimeOfImpact.s_xfB);
+      var separation = b2TimeOfImpact.s_fcn.Evaluate(b2TimeOfImpact.s_xfA, b2TimeOfImpact.s_xfB);
+      if (separation <= 0) {
+        alpha = 1;
+        break;
+      }
+      if (iter == 0) {
+        if (separation > radius) {
+          target = Math.max(radius - tolerance, 0.75 * radius);
+        } else {
+          target = Math.max(separation - tolerance, 0.02 * radius);
+        }
+      }
+      if (separation - target < 0.5 * tolerance) {
+        if (iter == 0) {
+          alpha = 1;
+          break;
+        }
+        break;
+      }
+      var newAlpha = alpha; {
+        var x1 = alpha;
+        var x2 = 1;
+        var f1 = separation;
+        sweepA.GetTransform(b2TimeOfImpact.s_xfA, x2);
+        sweepB.GetTransform(b2TimeOfImpact.s_xfB, x2);
+        var f2 = b2TimeOfImpact.s_fcn.Evaluate(b2TimeOfImpact.s_xfA, b2TimeOfImpact.s_xfB);
+        if (f2 >= target) {
+          alpha = 1;
+          break;
+        }
+        var rootIterCount = 0;
+        for (;;) {
+          var x = 0;
+          if (rootIterCount & 1) {
+            x = x1 + (target - f1) * (x2 - x1) / (f2 - f1);
+          }
+          else {
+            x = 0.5 * (x1 + x2);
+          }
+          sweepA.GetTransform(b2TimeOfImpact.s_xfA, x);
+          sweepB.GetTransform(b2TimeOfImpact.s_xfB, x);
+          var f = b2TimeOfImpact.s_fcn.Evaluate(b2TimeOfImpact.s_xfA, b2TimeOfImpact.s_xfB);
+          if (Math.abs(f - target) < 0.025 * tolerance) {
+            newAlpha = x;
+            break;
+          }
+          if (f > target) {
+            x1 = x;
+            f1 = f;
+          }
+          else {
+            x2 = x;
+            f2 = f;
+          }
+          rootIterCount++;
+          b2TimeOfImpact.b2_toiRootIters++;
+          if (rootIterCount == 50) {
+            break;
+          }
+        }
+        b2TimeOfImpact.b2_toiMaxRootIters = Math.max(b2TimeOfImpact.b2_toiMaxRootIters, rootIterCount);
+      }
+      if (newAlpha < (1 + 100 * Number.MIN_VALUE) * alpha) {
+        break;
+      }
+      alpha = newAlpha;
+      iter++;
+      ++b2TimeOfImpact.b2_toiIters;
+      if (iter == k_maxIterations) {
+        break;
+      }
+    }
+    b2TimeOfImpact.b2_toiMaxIters = Math.max(b2TimeOfImpact.b2_toiMaxIters, iter);
+    return alpha;
+  },
 };
-Box2D.Collision.b2TimeOfImpact = b2TimeOfImpact;
 
 // TODO(slightlyoff): inherit_()
-function b2TOIInput() {
-   b2TOIInput.b2TOIInput.apply(this, arguments);
-};
-Box2D.Collision.b2TOIInput = b2TOIInput;
+var b2WorldManifold =
+Box2D.Collision.b2WorldManifold = Box2D.inherit_({
+  initialize: function () {
+    this.m_normal = new b2Vec2();
+    this.m_points = [];
+    var maxPoints = b2Settings.b2_maxManifoldPoints;
+    while(maxPoints--){
+      this.m_points.push(new b2Vec2());
+    }
+  },
+  Initialize: function (manifold, xfA, radiusA, xfB, radiusB) {
+    if (radiusA === undefined) radiusA = 0;
+    if (radiusB === undefined) radiusB = 0;
+    if (manifold.m_pointCount == 0) { return; }
+    var i = 0;
+    var tVec;
+    var tMat;
+    var normalX = 0;
+    var normalY = 0;
+    var planePointX = 0;
+    var planePointY = 0;
+    var clipPointX = 0;
+    var clipPointY = 0;
+    switch (manifold.m_type) {
+      case b2Manifold.e_circles:
+        tMat = xfA.R;
+        tVec = manifold.m_localPoint;
+        var pointAX = xfA.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+        var pointAY = xfA.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+        tMat = xfB.R;
+        tVec = manifold.m_points[0].m_localPoint;
+        var pointBX = xfB.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+        var pointBY = xfB.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+        var dX = pointBX - pointAX;
+        var dY = pointBY - pointAY;
+        var d2 = dX * dX + dY * dY;
+        if (d2 > Number.MIN_VALUE * Number.MIN_VALUE) {
+          var d = Math.sqrt(d2);
+          this.m_normal.x = dX / d;
+          this.m_normal.y = dY / d;
+        } else {
+          this.m_normal.x = 1;
+          this.m_normal.y = 0;
+        }
+        var cAX = pointAX + radiusA * this.m_normal.x;
+        var cAY = pointAY + radiusA * this.m_normal.y;
+        var cBX = pointBX - radiusB * this.m_normal.x;
+        var cBY = pointBY - radiusB * this.m_normal.y;
+        this.m_points[0].x = 0.5 * (cAX + cBX);
+        this.m_points[0].y = 0.5 * (cAY + cBY);
+        break;
+      case b2Manifold.e_faceA:
+        tMat = xfA.R;
+        tVec = manifold.m_localPlaneNormal;
+        normalX = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+        normalY = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+        tMat = xfA.R;
+        tVec = manifold.m_localPoint;
+        planePointX = xfA.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+        planePointY = xfA.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+        this.m_normal.x = normalX;
+        this.m_normal.y = normalY;
+        for (i = 0; i < manifold.m_pointCount; i++) {
+          tMat = xfB.R;
+          tVec = manifold.m_points[i].m_localPoint;
+          clipPointX = xfB.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+          clipPointY = xfB.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+          this.m_points[i].x = clipPointX + 0.5 * (radiusA - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusB) * normalX;
+          this.m_points[i].y = clipPointY + 0.5 * (radiusA - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusB) * normalY;
+        }
+        break;
+      case b2Manifold.e_faceB:
+        tMat = xfB.R;
+        tVec = manifold.m_localPlaneNormal;
+        normalX = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+        normalY = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+        tMat = xfB.R;
+        tVec = manifold.m_localPoint;
+        planePointX = xfB.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+        planePointY = xfB.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+        this.m_normal.x = (-normalX);
+        this.m_normal.y = (-normalY);
+        for (i = 0; i < manifold.m_pointCount; i++) {
+          tMat = xfA.R;
+          tVec = manifold.m_points[i].m_localPoint;
+          clipPointX = xfA.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+          clipPointY = xfA.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+          this.m_points[i].x = clipPointX + 0.5 * (radiusB - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusA) * normalX;
+          this.m_points[i].y = clipPointY + 0.5 * (radiusB - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusA) * normalY;
+        }
+        break;
+    }
+  },
+});
+
+var ClipVertex =
+Box2D.Collision.ClipVertex = Box2D.inherit_({
+  initialize: function () {
+    this.v = new b2Vec2();
+    this.id = new b2ContactID();
+  },
+  Set: function (other) {
+    this.v.SetV(other.v);
+    this.id.Set(other.id);
+  },
+});
 
 // TODO(slightlyoff): inherit_()
-function b2WorldManifold() {
-   b2WorldManifold.b2WorldManifold.apply(this, arguments);
-   if (this.constructor === b2WorldManifold) this.b2WorldManifold.apply(this, arguments);
-};
-Box2D.Collision.b2WorldManifold = b2WorldManifold;
-
-// TODO(slightlyoff): inherit_()
-function ClipVertex() {
-   ClipVertex.ClipVertex.apply(this, arguments);
-};
-Box2D.Collision.ClipVertex = ClipVertex;
-
-// TODO(slightlyoff): inherit_()
-function Features() {
-   Features.Features.apply(this, arguments);
-};
-Box2D.Collision.Features = Features;
+var Features =
+Box2D.Collision.Features = Box2D.inherit_({
+  initialize: function () {
+    this._referenceEdge = null;
+    this._incidentEdge = null;
+    this._incidentVertex = null;
+    this._flip = null;
+    this._m_id = null;
+  },
+  get referenceEdge() {
+    return this._referenceEdge;
+  },
+  set referenceEdge(value) {
+    if (value === undefined) value = 0;
+    this._referenceEdge = value;
+    this._m_id._key = (this._m_id._key & 0xffffff00) | (this._referenceEdge & 0x000000ff);
+  },
+  get incidentEdge() {
+    return this._incidentEdge;
+  },
+  set incidentEdge(value) {
+    if (value === undefined) value = 0;
+    this._incidentEdge = value;
+    this._m_id._key = (this._m_id._key & 0xffff00ff) | ((this._incidentEdge << 8) & 0x0000ff00);
+  },
+  get incidentVertex() {
+    return this._incidentVertex;
+  },
+  set incidentVertex(value) {
+    if (value === undefined) value = 0;
+    this._incidentVertex = value;
+    this._m_id._key = (this._m_id._key & 0xff00ffff) | ((this._incidentVertex << 16) & 0x00ff0000);
+  },
+  get flip() {
+    return this._flip;
+  },
+  set flip(value) {
+    if (value === undefined) value = 0;
+    this._flip = value;
+    this._m_id._key = (this._m_id._key & 0x00ffffff) | ((this._flip << 24) & 0xff000000);
+  },
+});
 
 // TODO(slightlyoff): inherit_()
 function b2CircleShape() {
@@ -2090,7 +2319,7 @@ Box2D.Common.Math.b2Vec2 = Box2D.inherit_({
     return length;
   },
   IsValid: function() {
-    return b2Math.IsValid(this.x) && b2Math.IsValid(this.y);
+    return isFinite(this.x) && isFinite(this.y);
   },
 });
 
@@ -2482,141 +2711,34 @@ function b2WeldJointDef() {
 Box2D.Dynamics.Joints.b2WeldJointDef = b2WeldJointDef;
 Box2D.postDefs = [];
 Box2D.postDefs.push(function () {
-   var col = Box2D.Collision.b2Collision;
-   col.s_incidentEdge = b2Collision.MakeClipPointVector();
-   col.s_clipPoints1 = b2Collision.MakeClipPointVector();
-   col.s_clipPoints2 = b2Collision.MakeClipPointVector();
-   col.s_edgeAO = new NVector(1);
-   col.s_edgeBO = new NVector(1);
-   col.s_localTangent = new b2Vec2();
-   col.s_localNormal = new b2Vec2();
-   col.s_planePoint = new b2Vec2();
-   col.s_normal = new b2Vec2();
-   col.s_tangent = new b2Vec2();
-   col.s_tangent2 = new b2Vec2();
-   col.s_v11 = new b2Vec2();
-   col.s_v12 = new b2Vec2();
-   col.b2CollidePolyTempVec = new b2Vec2();
-   col.b2_nullFeature = 0x000000ff;
+  var col = Box2D.Collision.b2Collision;
+  col.s_incidentEdge = b2Collision.MakeClipPointVector();
+  col.s_clipPoints1 = b2Collision.MakeClipPointVector();
+  col.s_clipPoints2 = b2Collision.MakeClipPointVector();
+  col.s_edgeAO = new NVector(1);
+  col.s_edgeBO = new NVector(1);
+  col.s_localTangent = new b2Vec2();
+  col.s_localNormal = new b2Vec2();
+  col.s_planePoint = new b2Vec2();
+  col.s_normal = new b2Vec2();
+  col.s_tangent = new b2Vec2();
+  col.s_tangent2 = new b2Vec2();
+  col.s_v11 = new b2Vec2();
+  col.s_v12 = new b2Vec2();
+  col.b2CollidePolyTempVec = new b2Vec2();
+  col.b2_nullFeature = 0x000000ff;
 
-   Box2D.Collision.b2Distance.s_simplex = new b2Simplex();
-   Box2D.Collision.b2Distance.s_saveA = new NVector(3);
-   Box2D.Collision.b2Distance.s_saveB = new NVector(3);
-   Box2D.Collision.b2Manifold.e_circles = 0x0001;
-   Box2D.Collision.b2Manifold.e_faceA = 0x0002;
-   Box2D.Collision.b2Manifold.e_faceB = 0x0004;
-   Box2D.Collision.b2SeparationFunction.e_points = 0x01;
-   Box2D.Collision.b2SeparationFunction.e_faceA = 0x02;
-   Box2D.Collision.b2SeparationFunction.e_faceB = 0x04;
-});
+  Box2D.Collision.b2Distance.s_simplex = new b2Simplex();
+  Box2D.Collision.b2Distance.s_saveA = new NVector(3);
+  Box2D.Collision.b2Distance.s_saveB = new NVector(3);
+  Box2D.Collision.b2Manifold.e_circles = 0x0001;
+  Box2D.Collision.b2Manifold.e_faceA = 0x0002;
+  Box2D.Collision.b2Manifold.e_faceB = 0x0004;
+  Box2D.Collision.b2SeparationFunction.e_points = 0x01;
+  Box2D.Collision.b2SeparationFunction.e_faceA = 0x02;
+  Box2D.Collision.b2SeparationFunction.e_faceB = 0x04;
 
-b2TimeOfImpact.b2TimeOfImpact = function () {};
-b2TimeOfImpact.TimeOfImpact = function (input) {
-  ++b2TimeOfImpact.b2_toiCalls;
-  var proxyA = input.proxyA;
-  var proxyB = input.proxyB;
-  var sweepA = input.sweepA;
-  var sweepB = input.sweepB;
-  b2Settings.b2Assert(sweepA.t0 == sweepB.t0);
-  b2Settings.b2Assert(1 - sweepA.t0 > Number.MIN_VALUE);
-  var radius = proxyA.m_radius + proxyB.m_radius;
-  var tolerance = input.tolerance;
-  var alpha = 0;
-  var k_maxIterations = 1000;
-  var iter = 0;
-  var target = 0;
-  b2TimeOfImpact.s_cache.count = 0;
-  b2TimeOfImpact.s_distanceInput.useRadii = false;
-  for (;;) {
-    sweepA.GetTransform(b2TimeOfImpact.s_xfA, alpha);
-    sweepB.GetTransform(b2TimeOfImpact.s_xfB, alpha);
-    b2TimeOfImpact.s_distanceInput.proxyA = proxyA;
-    b2TimeOfImpact.s_distanceInput.proxyB = proxyB;
-    b2TimeOfImpact.s_distanceInput.transformA = b2TimeOfImpact.s_xfA;
-    b2TimeOfImpact.s_distanceInput.transformB = b2TimeOfImpact.s_xfB;
-    b2Distance.Distance(b2TimeOfImpact.s_distanceOutput, b2TimeOfImpact.s_cache, b2TimeOfImpact.s_distanceInput);
-    if (b2TimeOfImpact.s_distanceOutput.distance <= 0) {
-      alpha = 1;
-      break;
-    }
-    b2TimeOfImpact.s_fcn.Initialize(b2TimeOfImpact.s_cache, proxyA, b2TimeOfImpact.s_xfA, proxyB, b2TimeOfImpact.s_xfB);
-    var separation = b2TimeOfImpact.s_fcn.Evaluate(b2TimeOfImpact.s_xfA, b2TimeOfImpact.s_xfB);
-    if (separation <= 0) {
-      alpha = 1;
-      break;
-    }
-    if (iter == 0) {
-      if (separation > radius) {
-        target = b2Math.Max(radius - tolerance, 0.75 * radius);
-      }
-      else {
-        target = b2Math.Max(separation - tolerance, 0.02 * radius);
-      }
-    }
-    if (separation - target < 0.5 * tolerance) {
-      if (iter == 0) {
-        alpha = 1;
-        break;
-      }
-      break;
-    }
-    var newAlpha = alpha; {
-      var x1 = alpha;
-      var x2 = 1;
-      var f1 = separation;
-      sweepA.GetTransform(b2TimeOfImpact.s_xfA, x2);
-      sweepB.GetTransform(b2TimeOfImpact.s_xfB, x2);
-      var f2 = b2TimeOfImpact.s_fcn.Evaluate(b2TimeOfImpact.s_xfA, b2TimeOfImpact.s_xfB);
-      if (f2 >= target) {
-        alpha = 1;
-        break;
-      }
-      var rootIterCount = 0;
-      for (;;) {
-        var x = 0;
-        if (rootIterCount & 1) {
-          x = x1 + (target - f1) * (x2 - x1) / (f2 - f1);
-        }
-        else {
-          x = 0.5 * (x1 + x2);
-        }
-        sweepA.GetTransform(b2TimeOfImpact.s_xfA, x);
-        sweepB.GetTransform(b2TimeOfImpact.s_xfB, x);
-        var f = b2TimeOfImpact.s_fcn.Evaluate(b2TimeOfImpact.s_xfA, b2TimeOfImpact.s_xfB);
-        if (b2Math.Abs(f - target) < 0.025 * tolerance) {
-          newAlpha = x;
-          break;
-        }
-        if (f > target) {
-          x1 = x;
-          f1 = f;
-        }
-        else {
-          x2 = x;
-          f2 = f;
-        }++rootIterCount;
-        ++b2TimeOfImpact.b2_toiRootIters;
-        if (rootIterCount == 50) {
-          break;
-        }
-      }
-      b2TimeOfImpact.b2_toiMaxRootIters = b2Math.Max(b2TimeOfImpact.b2_toiMaxRootIters, rootIterCount);
-    }
-    if (newAlpha < (1 + 100 * Number.MIN_VALUE) * alpha) {
-      break;
-    }
-    alpha = newAlpha;
-    iter++;
-    ++b2TimeOfImpact.b2_toiIters;
-    if (iter == k_maxIterations) {
-      break;
-    }
-  }
-  b2TimeOfImpact.b2_toiMaxIters = b2Math.Max(b2TimeOfImpact.b2_toiMaxIters, iter);
-  return alpha;
-}
-Box2D.postDefs.push(function () {
-  var toi = Box2D.Collision.b2TimeOfImpact;
+  var toi = b2TimeOfImpact;
   toi.b2_toiCalls = 0;
   toi.b2_toiIters = 0;
   toi.b2_toiMaxIters = 0;
@@ -2628,188 +2750,6 @@ Box2D.postDefs.push(function () {
   toi.s_xfB = new b2Transform();
   toi.s_fcn = new b2SeparationFunction();
   toi.s_distanceOutput = new b2DistanceOutput();
-});
-b2TOIInput.b2TOIInput = function () {
-  this.proxyA = new b2DistanceProxy();
-  this.proxyB = new b2DistanceProxy();
-  this.sweepA = new b2Sweep();
-  this.sweepB = new b2Sweep();
-};
-b2WorldManifold.b2WorldManifold = function () {
-  this.m_normal = new b2Vec2();
-};
-b2WorldManifold.prototype.b2WorldManifold = function () {
-  this.m_points = new Vector(b2Settings.b2_maxManifoldPoints);
-  for (var i = 0; i < b2Settings.b2_maxManifoldPoints; i++) {
-    this.m_points[i] = new b2Vec2();
-  }
-}
-b2WorldManifold.prototype.Initialize = function (manifold, xfA, radiusA, xfB, radiusB) {
-  if (radiusA === undefined) radiusA = 0;
-  if (radiusB === undefined) radiusB = 0;
-  if (manifold.m_pointCount == 0) {
-    return;
-  }
-  var i = 0;
-  var tVec;
-  var tMat;
-  var normalX = 0;
-  var normalY = 0;
-  var planePointX = 0;
-  var planePointY = 0;
-  var clipPointX = 0;
-  var clipPointY = 0;
-  switch (manifold.m_type) {
-  case b2Manifold.e_circles:
-    {
-      tMat = xfA.R;
-      tVec = manifold.m_localPoint;
-      var pointAX = xfA.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-      var pointAY = xfA.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-      tMat = xfB.R;
-      tVec = manifold.m_points[0].m_localPoint;
-      var pointBX = xfB.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-      var pointBY = xfB.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-      var dX = pointBX - pointAX;
-      var dY = pointBY - pointAY;
-      var d2 = dX * dX + dY * dY;
-      if (d2 > Number.MIN_VALUE * Number.MIN_VALUE) {
-        var d = Math.sqrt(d2);
-        this.m_normal.x = dX / d;
-        this.m_normal.y = dY / d;
-      }
-      else {
-        this.m_normal.x = 1;
-        this.m_normal.y = 0;
-      }
-      var cAX = pointAX + radiusA * this.m_normal.x;
-      var cAY = pointAY + radiusA * this.m_normal.y;
-      var cBX = pointBX - radiusB * this.m_normal.x;
-      var cBY = pointBY - radiusB * this.m_normal.y;
-      this.m_points[0].x = 0.5 * (cAX + cBX);
-      this.m_points[0].y = 0.5 * (cAY + cBY);
-    }
-    break;
-  case b2Manifold.e_faceA:
-    {
-      tMat = xfA.R;
-      tVec = manifold.m_localPlaneNormal;
-      normalX = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-      normalY = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-      tMat = xfA.R;
-      tVec = manifold.m_localPoint;
-      planePointX = xfA.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-      planePointY = xfA.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-      this.m_normal.x = normalX;
-      this.m_normal.y = normalY;
-      for (i = 0;
-      i < manifold.m_pointCount; i++) {
-        tMat = xfB.R;
-        tVec = manifold.m_points[i].m_localPoint;
-        clipPointX = xfB.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-        clipPointY = xfB.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-        this.m_points[i].x = clipPointX + 0.5 * (radiusA - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusB) * normalX;
-        this.m_points[i].y = clipPointY + 0.5 * (radiusA - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusB) * normalY;
-      }
-    }
-    break;
-  case b2Manifold.e_faceB:
-    {
-      tMat = xfB.R;
-      tVec = manifold.m_localPlaneNormal;
-      normalX = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-      normalY = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-      tMat = xfB.R;
-      tVec = manifold.m_localPoint;
-      planePointX = xfB.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-      planePointY = xfB.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-      this.m_normal.x = (-normalX);
-      this.m_normal.y = (-normalY);
-      for (i = 0;
-      i < manifold.m_pointCount; i++) {
-        tMat = xfA.R;
-        tVec = manifold.m_points[i].m_localPoint;
-        clipPointX = xfA.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-        clipPointY = xfA.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-        this.m_points[i].x = clipPointX + 0.5 * (radiusB - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusA) * normalX;
-        this.m_points[i].y = clipPointY + 0.5 * (radiusB - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusA) * normalY;
-      }
-    }
-    break;
-  }
-}
-ClipVertex.ClipVertex = function () {
-  this.v = new b2Vec2();
-  this.id = new b2ContactID();
-};
-ClipVertex.prototype.Set = function (other) {
-  this.v.SetV(other.v);
-  this.id.Set(other.id);
-}
-Features.Features = function () {};
-Object.defineProperty(Features.prototype, 'referenceEdge', {
-  enumerable: false,
-  configurable: true,
-  get: function () {
-    return this._referenceEdge;
-  }
-});
-Object.defineProperty(Features.prototype, 'referenceEdge', {
-  enumerable: false,
-  configurable: true,
-  set: function (value) {
-    if (value === undefined) value = 0;
-    this._referenceEdge = value;
-    this._m_id._key = (this._m_id._key & 0xffffff00) | (this._referenceEdge & 0x000000ff);
-  }
-});
-Object.defineProperty(Features.prototype, 'incidentEdge', {
-  enumerable: false,
-  configurable: true,
-  get: function () {
-    return this._incidentEdge;
-  }
-});
-Object.defineProperty(Features.prototype, 'incidentEdge', {
-  enumerable: false,
-  configurable: true,
-  set: function (value) {
-    if (value === undefined) value = 0;
-    this._incidentEdge = value;
-    this._m_id._key = (this._m_id._key & 0xffff00ff) | ((this._incidentEdge << 8) & 0x0000ff00);
-  }
-});
-Object.defineProperty(Features.prototype, 'incidentVertex', {
-  enumerable: false,
-  configurable: true,
-  get: function () {
-    return this._incidentVertex;
-  }
-});
-Object.defineProperty(Features.prototype, 'incidentVertex', {
-  enumerable: false,
-  configurable: true,
-  set: function (value) {
-    if (value === undefined) value = 0;
-    this._incidentVertex = value;
-    this._m_id._key = (this._m_id._key & 0xff00ffff) | ((this._incidentVertex << 16) & 0x00ff0000);
-  }
-});
-Object.defineProperty(Features.prototype, 'flip', {
-  enumerable: false,
-  configurable: true,
-  get: function () {
-    return this._flip;
-  }
-});
-Object.defineProperty(Features.prototype, 'flip', {
-  enumerable: false,
-  configurable: true,
-  set: function (value) {
-    if (value === undefined) value = 0;
-    this._flip = value;
-    this._m_id._key = (this._m_id._key & 0x00ffffff) | ((this._flip << 24) & 0xff000000);
-  }
 });
 
 Box2D.inherit(b2CircleShape, Box2D.Collision.Shapes.b2Shape);
@@ -3928,8 +3868,6 @@ b2Mat33.prototype.SetZero = function () {
   this.col3.z = 0;
 }
 b2Mat33.prototype.Solve22 = function (out, bX, bY) {
-  if (bX === undefined) bX = 0;
-  if (bY === undefined) bY = 0;
   var a11 = this.col1.x;
   var a12 = this.col2.x;
   var a21 = this.col1.y;
@@ -3943,9 +3881,6 @@ b2Mat33.prototype.Solve22 = function (out, bX, bY) {
   return out;
 }
 b2Mat33.prototype.Solve33 = function (out, bX, bY, bZ) {
-  if (bX === undefined) bX = 0;
-  if (bY === undefined) bY = 0;
-  if (bZ === undefined) bZ = 0;
   var a11 = this.col1.x;
   var a21 = this.col1.y;
   var a31 = this.col1.z;
@@ -3965,10 +3900,6 @@ b2Mat33.prototype.Solve33 = function (out, bX, bY, bZ) {
   return out;
 }
 b2Math.b2Math = function () {};
-b2Math.IsValid = function (x) {
-  if (x === undefined) x = 0;
-  return isFinite(x);
-}
 b2Math.Dot = function (a, b) {
   return a.x * b.x + a.y * b.y;
 }
@@ -3976,17 +3907,16 @@ b2Math.CrossVV = function (a, b) {
   return a.x * b.y - a.y * b.x;
 }
 b2Math.CrossVF = function (a, s) {
-  if (s === undefined) s = 0;
   var v = new b2Vec2(s * a.y, (-s * a.x));
   return v;
 }
 b2Math.CrossFV = function (s, a) {
-  if (s === undefined) s = 0;
   var v = new b2Vec2((-s * a.y), s * a.x);
   return v;
 }
 b2Math.MulMV = function (A, v) {
-  var u = new b2Vec2(A.col1.x * v.x + A.col2.x * v.y, A.col1.y * v.x + A.col2.y * v.y);
+  var u = new b2Vec2(A.col1.x * v.x + A.col2.x * v.y,
+                     A.col1.y * v.x + A.col2.y * v.y);
   return u;
 }
 b2Math.MulTMV = function (A, v) {
@@ -4043,34 +3973,20 @@ b2Math.MulTMM = function (A, B) {
   var C = b2Mat22.FromVV(c1, c2);
   return C;
 }
-b2Math.Abs = function (a) {
-  if (a === undefined) a = 0;
-  return a > 0 ? a : (-a);
-}
 b2Math.AbsV = function (a) {
-  var b = new b2Vec2(b2Math.Abs(a.x), b2Math.Abs(a.y));
+  var b = new b2Vec2(Math.abs(a.x), Math.abs(a.y));
   return b;
 }
 b2Math.AbsM = function (A) {
   var B = b2Mat22.FromVV(b2Math.AbsV(A.col1), b2Math.AbsV(A.col2));
   return B;
 }
-b2Math.Min = function (a, b) {
-  if (a === undefined) a = 0;
-  if (b === undefined) b = 0;
-  return a < b ? a : b;
-}
 b2Math.MinV = function (a, b) {
-  var c = new b2Vec2(b2Math.Min(a.x, b.x), b2Math.Min(a.y, b.y));
+  var c = new b2Vec2(Math.min(a.x, b.x), Math.min(a.y, b.y));
   return c;
 }
-b2Math.Max = function (a, b) {
-  if (a === undefined) a = 0;
-  if (b === undefined) b = 0;
-  return a > b ? a : b;
-}
 b2Math.MaxV = function (a, b) {
-  var c = new b2Vec2(b2Math.Max(a.x, b.x), b2Math.Max(a.y, b.y));
+  var c = new b2Vec2(Math.max(a.x, b.x), Math.max(a.y, b.y));
   return c;
 }
 b2Math.Clamp = function (a, low, high) {
@@ -5317,6 +5233,8 @@ b2Island.prototype.Clear = function () {
   this.m_jointCount = 0;
 }
 b2Island.prototype.Solve = function (step, gravity, allowSleep) {
+  // FIXME(slightlyoff): deoptimizing!
+  //    "Optimized too many times"
   var i = 0;
   var j = 0;
   var b;
@@ -5363,8 +5281,7 @@ b2Island.prototype.Solve = function (step, gravity, allowSleep) {
     if (rotation * rotation > b2Settings.b2_maxRotationSquared) {
       if (b.m_angularVelocity < 0) {
         b.m_angularVelocity = (-b2Settings.b2_maxRotation * step.inv_dt);
-      }
-      else {
+      } else {
         b.m_angularVelocity = b2Settings.b2_maxRotation * step.inv_dt;
       }
     }
@@ -5405,10 +5322,9 @@ b2Island.prototype.Solve = function (step, gravity, allowSleep) {
       if ((b.m_flags & b2Body.e_allowSleepFlag) == 0 || b.m_angularVelocity * b.m_angularVelocity > angTolSqr || b2Math.Dot(b.m_linearVelocity, b.m_linearVelocity) > linTolSqr) {
         b.m_sleepTime = 0;
         minSleepTime = 0;
-      }
-      else {
+      } else {
         b.m_sleepTime += step.dt;
-        minSleepTime = b2Math.Min(minSleepTime, b.m_sleepTime);
+        minSleepTime = Math.min(minSleepTime, b.m_sleepTime);
       }
     }
     if (minSleepTime >= b2Settings.b2_timeToSleep) {
@@ -6556,7 +6472,12 @@ Box2D.postDefs.push(function () {
   Box2D.Dynamics.Contacts.b2Contact.e_touchingFlag = 0x0010;
   Box2D.Dynamics.Contacts.b2Contact.e_enabledFlag = 0x0020;
   Box2D.Dynamics.Contacts.b2Contact.e_filterFlag = 0x0040;
-  Box2D.Dynamics.Contacts.b2Contact.s_input = new b2TOIInput();
+  Box2D.Dynamics.Contacts.b2Contact.s_input = {
+    proxyA: new b2DistanceProxy(),
+    proxyB: new b2DistanceProxy(),
+    sweepA: new b2Sweep(),
+    sweepB: new b2Sweep(),
+  };
 });
 b2ContactConstraint.b2ContactConstraint = function () {
   this.localPlaneNormal = new b2Vec2();
@@ -7063,8 +6984,10 @@ b2ContactSolver.prototype.SolvePositionConstraints = function (baumgarte) {
   return minSeparation > (-1.5 * b2Settings.b2_linearSlop);
 }
 Box2D.postDefs.push(function () {
-  Box2D.Dynamics.Contacts.b2ContactSolver.s_worldManifold = new b2WorldManifold();
-  Box2D.Dynamics.Contacts.b2ContactSolver.s_psm = new b2PositionSolverManifold();
+  Box2D.Dynamics.Contacts.b2ContactSolver.s_worldManifold =
+      new b2WorldManifold();
+  Box2D.Dynamics.Contacts.b2ContactSolver.s_psm =
+      new b2PositionSolverManifold();
 });
 Box2D.inherit(b2EdgeAndCircleContact, Box2D.Dynamics.Contacts.b2Contact);
 b2EdgeAndCircleContact.prototype.__super = Box2D.Dynamics.Contacts.b2Contact.prototype;
@@ -7673,7 +7596,7 @@ b2DistanceJoint.prototype.SolvePositionConstraints = function (baumgarte) {
   bB.m_sweep.a += bB.m_invI * (r2X * PY - r2Y * PX);
   bA.SynchronizeTransform();
   bB.SynchronizeTransform();
-  return b2Math.Abs(C) < b2Settings.b2_linearSlop;
+  return Math.abs(C) < b2Settings.b2_linearSlop;
 }
 Box2D.inherit(b2DistanceJointDef, Box2D.Dynamics.Joints.b2JointDef);
 b2DistanceJointDef.prototype.__super = Box2D.Dynamics.Joints.b2JointDef.prototype;
@@ -8436,7 +8359,7 @@ b2LineJoint.prototype.InitVelocityConstraints = function (step) {
   }
   if (this.m_enableLimit) {
     var jointTransition = this.m_axis.x * dX + this.m_axis.y * dY;
-    if (b2Math.Abs(this.m_upperTranslation - this.m_lowerTranslation) < 2.0 * b2Settings.b2_linearSlop) {
+    if (Math.abs(this.m_upperTranslation - this.m_lowerTranslation) < 2.0 * b2Settings.b2_linearSlop) {
       this.m_limitState = b2Joint.e_equalLimits;
     }
     else if (jointTransition <= this.m_lowerTranslation) {
@@ -8518,10 +8441,10 @@ b2LineJoint.prototype.SolveVelocityConstraints = function (step) {
     var df = this.m_K.Solve(new b2Vec2(), (-Cdot1), (-Cdot2));
     this.m_impulse.Add(df);
     if (this.m_limitState == b2Joint.e_atLowerLimit) {
-      this.m_impulse.y = b2Math.Max(this.m_impulse.y, 0);
+      this.m_impulse.y = Math.max(this.m_impulse.y, 0);
     }
     else if (this.m_limitState == b2Joint.e_atUpperLimit) {
-      this.m_impulse.y = b2Math.Min(this.m_impulse.y, 0);
+      this.m_impulse.y = Math.min(this.m_impulse.y, 0);
     }
     var b = (-Cdot1) - (this.m_impulse.y - f1.y) * this.m_K.col2.x;
     var f2r = 0;
@@ -8611,9 +8534,9 @@ b2LineJoint.prototype.SolvePositionConstraints = function (baumgarte) {
     this.m_a1 = (dX + r1X) * this.m_axis.y - (dY + r1Y) * this.m_axis.x;
     this.m_a2 = r2X * this.m_axis.y - r2Y * this.m_axis.x;
     var translation = this.m_axis.x * dX + this.m_axis.y * dY;
-    if (b2Math.Abs(this.m_upperTranslation - this.m_lowerTranslation) < 2.0 * b2Settings.b2_linearSlop) {
+    if (Math.abs(this.m_upperTranslation - this.m_lowerTranslation) < 2.0 * b2Settings.b2_linearSlop) {
       C2 = b2Math.Clamp(translation, (-b2Settings.b2_maxLinearCorrection), b2Settings.b2_maxLinearCorrection);
-      linearError = b2Math.Abs(translation);
+      linearError = Math.abs(translation);
       active = true;
     }
     else if (translation <= this.m_lowerTranslation) {
@@ -8632,7 +8555,7 @@ b2LineJoint.prototype.SolvePositionConstraints = function (baumgarte) {
   this.m_s2 = r2X * this.m_perp.y - r2Y * this.m_perp.x;
   var impulse = new b2Vec2();
   var C1 = this.m_perp.x * dX + this.m_perp.y * dY;
-  linearError = b2Math.Max(linearError, b2Math.Abs(C1));
+  linearError = Math.max(linearError, Math.abs(C1));
   angularError = 0;
   if (active) {
     m1 = this.m_invMassA;
@@ -9054,7 +8977,7 @@ b2PrismaticJoint.prototype.InitVelocityConstraints = function (step) {
   }
   if (this.m_enableLimit) {
     var jointTransition = this.m_axis.x * dX + this.m_axis.y * dY;
-    if (b2Math.Abs(this.m_upperTranslation - this.m_lowerTranslation) < 2.0 * b2Settings.b2_linearSlop) {
+    if (Math.abs(this.m_upperTranslation - this.m_lowerTranslation) < 2.0 * b2Settings.b2_linearSlop) {
       this.m_limitState = b2Joint.e_equalLimits;
     }
     else if (jointTransition <= this.m_lowerTranslation) {
@@ -9137,10 +9060,10 @@ b2PrismaticJoint.prototype.SolveVelocityConstraints = function (step) {
     var df = this.m_K.Solve33(new b2Vec3(), (-Cdot1X), (-Cdot1Y), (-Cdot2));
     this.m_impulse.Add(df);
     if (this.m_limitState == b2Joint.e_atLowerLimit) {
-      this.m_impulse.z = b2Math.Max(this.m_impulse.z, 0);
+      this.m_impulse.z = Math.max(this.m_impulse.z, 0);
     }
     else if (this.m_limitState == b2Joint.e_atUpperLimit) {
-      this.m_impulse.z = b2Math.Min(this.m_impulse.z, 0);
+      this.m_impulse.z = Math.min(this.m_impulse.z, 0);
     }
     var bX = (-Cdot1X) - (this.m_impulse.z - f1.z) * this.m_K.col3.x;
     var bY = (-Cdot1Y) - (this.m_impulse.z - f1.z) * this.m_K.col3.y;
@@ -9224,9 +9147,9 @@ b2PrismaticJoint.prototype.SolvePositionConstraints = function (baumgarte) {
     this.m_a1 = (dX + r1X) * this.m_axis.y - (dY + r1Y) * this.m_axis.x;
     this.m_a2 = r2X * this.m_axis.y - r2Y * this.m_axis.x;
     var translation = this.m_axis.x * dX + this.m_axis.y * dY;
-    if (b2Math.Abs(this.m_upperTranslation - this.m_lowerTranslation) < 2.0 * b2Settings.b2_linearSlop) {
+    if (Math.abs(this.m_upperTranslation - this.m_lowerTranslation) < 2.0 * b2Settings.b2_linearSlop) {
       C2 = b2Math.Clamp(translation, (-b2Settings.b2_maxLinearCorrection), b2Settings.b2_maxLinearCorrection);
-      linearError = b2Math.Abs(translation);
+      linearError = Math.abs(translation);
       active = true;
     } else if (translation <= this.m_lowerTranslation) {
       C2 = b2Math.Clamp(translation - this.m_lowerTranslation + b2Settings.b2_linearSlop, (-b2Settings.b2_maxLinearCorrection), 0);
@@ -9244,8 +9167,8 @@ b2PrismaticJoint.prototype.SolvePositionConstraints = function (baumgarte) {
   var impulse = new b2Vec3();
   var C1X = this.m_perp.x * dX + this.m_perp.y * dY;
   var C1Y = a2 - a1 - this.m_refAngle;
-  linearError = b2Math.Max(linearError, b2Math.Abs(C1X));
-  angularError = b2Math.Abs(C1Y);
+  linearError = Math.max(linearError, Math.abs(C1X));
+  angularError = Math.abs(C1Y);
   if (active) {
     m1 = this.m_invMassA;
     m2 = this.m_invMassB;
@@ -9389,8 +9312,8 @@ b2PulleyJoint.prototype.b2PulleyJoint = function (def) {
   this.m_localAnchor2.SetV(def.localAnchorB);
   this.m_ratio = def.ratio;
   this.m_constant = def.lengthA + this.m_ratio * def.lengthB;
-  this.m_maxLength1 = b2Math.Min(def.maxLengthA, this.m_constant - this.m_ratio * b2PulleyJoint.b2_minPulleyLength);
-  this.m_maxLength2 = b2Math.Min(def.maxLengthB, (this.m_constant - b2PulleyJoint.b2_minPulleyLength) / this.m_ratio);
+  this.m_maxLength1 = Math.min(def.maxLengthA, this.m_constant - this.m_ratio * b2PulleyJoint.b2_minPulleyLength);
+  this.m_maxLength2 = Math.min(def.maxLengthB, (this.m_constant - b2PulleyJoint.b2_minPulleyLength) / this.m_ratio);
   this.m_impulse = 0;
   this.m_limitImpulse1 = 0;
   this.m_limitImpulse2 = 0;
@@ -9521,7 +9444,7 @@ b2PulleyJoint.prototype.SolveVelocityConstraints = function (step) {
     Cdot = (-(this.m_u1.x * v1X + this.m_u1.y * v1Y)) - this.m_ratio * (this.m_u2.x * v2X + this.m_u2.y * v2Y);
     impulse = this.m_pulleyMass * ((-Cdot));
     oldImpulse = this.m_impulse;
-    this.m_impulse = b2Math.Max(0, this.m_impulse + impulse);
+    this.m_impulse = Math.max(0, this.m_impulse + impulse);
     impulse = this.m_impulse - oldImpulse;
     P1X = (-impulse * this.m_u1.x);
     P1Y = (-impulse * this.m_u1.y);
@@ -9540,7 +9463,7 @@ b2PulleyJoint.prototype.SolveVelocityConstraints = function (step) {
     Cdot = (-(this.m_u1.x * v1X + this.m_u1.y * v1Y));
     impulse = (-this.m_limitMass1 * Cdot);
     oldImpulse = this.m_limitImpulse1;
-    this.m_limitImpulse1 = b2Math.Max(0, this.m_limitImpulse1 + impulse);
+    this.m_limitImpulse1 = Math.max(0, this.m_limitImpulse1 + impulse);
     impulse = this.m_limitImpulse1 - oldImpulse;
     P1X = (-impulse * this.m_u1.x);
     P1Y = (-impulse * this.m_u1.y);
@@ -9554,7 +9477,7 @@ b2PulleyJoint.prototype.SolveVelocityConstraints = function (step) {
     Cdot = (-(this.m_u2.x * v2X + this.m_u2.y * v2Y));
     impulse = (-this.m_limitMass2 * Cdot);
     oldImpulse = this.m_limitImpulse2;
-    this.m_limitImpulse2 = b2Math.Max(0, this.m_limitImpulse2 + impulse);
+    this.m_limitImpulse2 = Math.max(0, this.m_limitImpulse2 + impulse);
     impulse = this.m_limitImpulse2 - oldImpulse;
     P2X = (-impulse * this.m_u2.x);
     P2Y = (-impulse * this.m_u2.y);
@@ -9622,7 +9545,7 @@ b2PulleyJoint.prototype.SolvePositionConstraints = function (baumgarte) {
       this.m_u2.SetZero();
     }
     C = this.m_constant - length1 - this.m_ratio * length2;
-    linearError = b2Math.Max(linearError, (-C));
+    linearError = Math.max(linearError, (-C));
     C = b2Math.Clamp(C + b2Settings.b2_linearSlop, (-b2Settings.b2_maxLinearCorrection), 0);
     impulse = (-this.m_pulleyMass * C);
     p1X = (-impulse * this.m_u1.x);
@@ -9657,7 +9580,7 @@ b2PulleyJoint.prototype.SolvePositionConstraints = function (baumgarte) {
       this.m_u1.SetZero();
     }
     C = this.m_maxLength1 - length1;
-    linearError = b2Math.Max(linearError, (-C));
+    linearError = Math.max(linearError, (-C));
     C = b2Math.Clamp(C + b2Settings.b2_linearSlop, (-b2Settings.b2_maxLinearCorrection), 0);
     impulse = (-this.m_limitMass1 * C);
     p1X = (-impulse * this.m_u1.x);
@@ -9686,7 +9609,7 @@ b2PulleyJoint.prototype.SolvePositionConstraints = function (baumgarte) {
       this.m_u2.SetZero();
     }
     C = this.m_maxLength2 - length2;
-    linearError = b2Math.Max(linearError, (-C));
+    linearError = Math.max(linearError, (-C));
     C = b2Math.Clamp(C + b2Settings.b2_linearSlop, (-b2Settings.b2_maxLinearCorrection), 0);
     impulse = (-this.m_limitMass2 * C);
     p2X = (-impulse * this.m_u2.x);
@@ -9873,7 +9796,7 @@ b2RevoluteJoint.prototype.InitVelocityConstraints = function (step) {
   }
   if (this.m_enableLimit) {
     var jointAngle = bB.m_sweep.a - bA.m_sweep.a - this.m_referenceAngle;
-    if (b2Math.Abs(this.m_upperAngle - this.m_lowerAngle) < 2.0 * b2Settings.b2_angularSlop) {
+    if (Math.abs(this.m_upperAngle - this.m_lowerAngle) < 2.0 * b2Settings.b2_angularSlop) {
       this.m_limitState = b2Joint.e_equalLimits;
     }
     else if (jointAngle <= this.m_lowerAngle) {
@@ -10041,7 +9964,7 @@ b2RevoluteJoint.prototype.SolvePositionConstraints = function (baumgarte) {
     if (this.m_limitState == b2Joint.e_equalLimits) {
       C = b2Math.Clamp(angle - this.m_lowerAngle, (-b2Settings.b2_maxAngularCorrection), b2Settings.b2_maxAngularCorrection);
       limitImpulse = (-this.m_motorMass * C);
-      angularError = b2Math.Abs(C);
+      angularError = Math.abs(C);
     }
     else if (this.m_limitState == b2Joint.e_atLowerLimit) {
       C = angle - this.m_lowerAngle;
@@ -10299,7 +10222,7 @@ b2WeldJoint.prototype.SolvePositionConstraints = function (baumgarte) {
   var C2 = bB.m_sweep.a - bA.m_sweep.a - this.m_referenceAngle;
   var k_allowedStretch = 10 * b2Settings.b2_linearSlop;
   var positionError = Math.sqrt(C1X * C1X + C1Y * C1Y);
-  var angularError = b2Math.Abs(C2);
+  var angularError = Math.abs(C2);
   if (positionError > k_allowedStretch) {
     iA *= 1;
     iB *= 1;
