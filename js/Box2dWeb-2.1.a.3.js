@@ -6379,12 +6379,178 @@ function b2PositionSolverManifold() {
    if (this.constructor === b2PositionSolverManifold) this.b2PositionSolverManifold.apply(this, arguments);
 };
 Box2D.Dynamics.Contacts.b2PositionSolverManifold = b2PositionSolverManifold;
+b2PositionSolverManifold.b2PositionSolverManifold = function () {};
 
-// TODO(slightlyoff): inherit_()
-function b2BuoyancyController() {
-   b2BuoyancyController.b2BuoyancyController.apply(this, arguments);
-};
-Box2D.Dynamics.Controllers.b2BuoyancyController = b2BuoyancyController;
+
+var b2PositionSolverManifold =
+Box2D.Dynamics.Contacts.b2PositionSolverManifold = Box2D.inherit_({
+  initialize: function() {
+    this.m_normal = new b2Vec2();
+    this.m_separations = new NVector(b2Settings.b2_maxManifoldPoints);
+    this.m_points = [];
+    for (var i = 0; i < b2Settings.b2_maxManifoldPoints; i++) {
+      this.m_points.push(new b2Vec2());
+    }
+  },
+  Initialize: function (cc) {
+    b2Settings.b2Assert(cc.pointCount > 0);
+    var i = 0;
+    var clipPointX = 0;
+    var clipPointY = 0;
+    var tMat;
+    var tVec;
+    var planePointX = 0;
+    var planePointY = 0;
+    switch (cc.type) {
+    case b2Manifold.e_circles:
+      {
+        tMat = cc.bodyA.m_xf.R;
+        tVec = cc.localPoint;
+        var pointAX = cc.bodyA.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+        var pointAY = cc.bodyA.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+        tMat = cc.bodyB.m_xf.R;
+        tVec = cc.points[0].localPoint;
+        var pointBX = cc.bodyB.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+        var pointBY = cc.bodyB.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+        var dX = pointBX - pointAX;
+        var dY = pointBY - pointAY;
+        var d2 = dX * dX + dY * dY;
+        if (d2 > Number.MIN_VALUE * Number.MIN_VALUE) {
+          var d = Math.sqrt(d2);
+          this.m_normal.x = dX / d;
+          this.m_normal.y = dY / d;
+        } else {
+          this.m_normal.x = 1;
+          this.m_normal.y = 0;
+        }
+        this.m_points[0].x = 0.5 * (pointAX + pointBX);
+        this.m_points[0].y = 0.5 * (pointAY + pointBY);
+        this.m_separations[0] = dX * this.m_normal.x + dY * this.m_normal.y - cc.radius;
+      }
+      break;
+    case b2Manifold.e_faceA:
+      {
+        tMat = cc.bodyA.m_xf.R;
+        tVec = cc.localPlaneNormal;
+        this.m_normal.x = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+        this.m_normal.y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+        tMat = cc.bodyA.m_xf.R;
+        tVec = cc.localPoint;
+        planePointX = cc.bodyA.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+        planePointY = cc.bodyA.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+        tMat = cc.bodyB.m_xf.R;
+        for (i = 0;
+        i < cc.pointCount; ++i) {
+          tVec = cc.points[i].localPoint;
+          clipPointX = cc.bodyB.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+          clipPointY = cc.bodyB.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+          this.m_separations[i] = (clipPointX - planePointX) * this.m_normal.x + (clipPointY - planePointY) * this.m_normal.y - cc.radius;
+          this.m_points[i].x = clipPointX;
+          this.m_points[i].y = clipPointY;
+        }
+      }
+      break;
+    case b2Manifold.e_faceB:
+      {
+        tMat = cc.bodyB.m_xf.R;
+        tVec = cc.localPlaneNormal;
+        this.m_normal.x = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+        this.m_normal.y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+        tMat = cc.bodyB.m_xf.R;
+        tVec = cc.localPoint;
+        planePointX = cc.bodyB.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+        planePointY = cc.bodyB.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+        tMat = cc.bodyA.m_xf.R;
+        for (i = 0;
+        i < cc.pointCount; ++i) {
+          tVec = cc.points[i].localPoint;
+          clipPointX = cc.bodyA.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+          clipPointY = cc.bodyA.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+          this.m_separations[i] = (clipPointX - planePointX) * this.m_normal.x + (clipPointY - planePointY) * this.m_normal.y - cc.radius;
+          this.m_points[i].Set(clipPointX, clipPointY);
+        }
+        this.m_normal.x *= (-1);
+        this.m_normal.y *= (-1);
+      }
+      break;
+    }
+  },
+});
+
+var b2BuoyancyController =
+Box2D.Dynamics.Controllers.b2BuoyancyController = Box2D.inherit_({
+  extends: b2Controller,
+  initialize: function() {
+    b2Controller.apply(this, arguments);
+    this.normal = new b2Vec2(0, (-1));
+    this.offset = 0;
+    this.density = 0;
+    this.velocity = new b2Vec2(0, 0);
+    this.linearDrag = 2;
+    this.angularDrag = 1;
+    this.useDensity = false;
+    this.useWorldGravity = true;
+    this.gravity = null;
+  },
+  Step: function (step) {
+    if (!this.m_bodyList) return;
+    if (this.useWorldGravity) {
+      this.gravity = this.GetWorld().GetGravity().Copy();
+    }
+    for (var i = this.m_bodyList; i; i = i.nextBody) {
+      var body = i.body;
+      if (body.IsAwake() == false) {
+        continue;
+      }
+      var areac = new b2Vec2();
+      var massc = new b2Vec2();
+      var area = 0;
+      var mass = 0;
+      for (var fixture = body.GetFixtureList(); fixture; fixture = fixture.GetNext()) {
+        var sc = new b2Vec2();
+        var sarea = fixture.GetShape().ComputeSubmergedArea(this.normal, this.offset, body.GetTransform(), sc);
+        area += sarea;
+        areac.x += sarea * sc.x;
+        areac.y += sarea * sc.y;
+        var shapeDensity = 0;
+        if (this.useDensity) {
+          shapeDensity = 1;
+        } else {
+          shapeDensity = 1;
+        }
+        mass += sarea * shapeDensity;
+        massc.x += sarea * sc.x * shapeDensity;
+        massc.y += sarea * sc.y * shapeDensity;
+      }
+      areac.x /= area;
+      areac.y /= area;
+      massc.x /= mass;
+      massc.y /= mass;
+      if (area < Number.MIN_VALUE) continue;
+      var buoyancyForce = this.gravity.GetNegative();
+      buoyancyForce.Multiply(this.density * area);
+      body.ApplyForce(buoyancyForce, massc);
+      var dragForce = body.GetLinearVelocityFromWorldPoint(areac);
+      dragForce.Subtract(this.velocity);
+      dragForce.Multiply((-this.linearDrag * area));
+      body.ApplyForce(dragForce, areac);
+      body.ApplyTorque((-body.GetInertia() / body.GetMass() * area * body.GetAngularVelocity() * this.angularDrag));
+    }
+  },
+  Draw: function (debugDraw) {
+    var r = 1000;
+    var p1 = new b2Vec2();
+    var p2 = new b2Vec2();
+    p1.x = this.normal.x * this.offset + this.normal.y * r;
+    p1.y = this.normal.y * this.offset - this.normal.x * r;
+    p2.x = this.normal.x * this.offset - this.normal.y * r;
+    p2.y = this.normal.y * this.offset + this.normal.x * r;
+    var color = new b2Color(0, 0, 1);
+    debugDraw.DrawSegment(p1, p2, color);
+  },
+});
+
+
 
 // TODO(slightlyoff): inherit_()
 function b2ConstantAccelController() {
@@ -6634,169 +6800,6 @@ b2DebugDraw.prototype.DrawSegment = function (p1, p2, color) {}
 b2DebugDraw.prototype.DrawTransform = function (xf) {}
 
 
-b2PositionSolverManifold.b2PositionSolverManifold = function () {};
-b2PositionSolverManifold.prototype.b2PositionSolverManifold = function () {
-  this.m_normal = new b2Vec2();
-  this.m_separations = new NVector(b2Settings.b2_maxManifoldPoints);
-  this.m_points = new Vector(b2Settings.b2_maxManifoldPoints);
-  for (var i = 0; i < b2Settings.b2_maxManifoldPoints; i++) {
-    this.m_points[i] = new b2Vec2();
-  }
-}
-b2PositionSolverManifold.prototype.Initialize = function (cc) {
-  b2Settings.b2Assert(cc.pointCount > 0);
-  var i = 0;
-  var clipPointX = 0;
-  var clipPointY = 0;
-  var tMat;
-  var tVec;
-  var planePointX = 0;
-  var planePointY = 0;
-  switch (cc.type) {
-  case b2Manifold.e_circles:
-    {
-      tMat = cc.bodyA.m_xf.R;
-      tVec = cc.localPoint;
-      var pointAX = cc.bodyA.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
-      var pointAY = cc.bodyA.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
-      tMat = cc.bodyB.m_xf.R;
-      tVec = cc.points[0].localPoint;
-      var pointBX = cc.bodyB.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
-      var pointBY = cc.bodyB.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
-      var dX = pointBX - pointAX;
-      var dY = pointBY - pointAY;
-      var d2 = dX * dX + dY * dY;
-      if (d2 > Number.MIN_VALUE * Number.MIN_VALUE) {
-        var d = Math.sqrt(d2);
-        this.m_normal.x = dX / d;
-        this.m_normal.y = dY / d;
-      } else {
-        this.m_normal.x = 1;
-        this.m_normal.y = 0;
-      }
-      this.m_points[0].x = 0.5 * (pointAX + pointBX);
-      this.m_points[0].y = 0.5 * (pointAY + pointBY);
-      this.m_separations[0] = dX * this.m_normal.x + dY * this.m_normal.y - cc.radius;
-    }
-    break;
-  case b2Manifold.e_faceA:
-    {
-      tMat = cc.bodyA.m_xf.R;
-      tVec = cc.localPlaneNormal;
-      this.m_normal.x = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-      this.m_normal.y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-      tMat = cc.bodyA.m_xf.R;
-      tVec = cc.localPoint;
-      planePointX = cc.bodyA.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
-      planePointY = cc.bodyA.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
-      tMat = cc.bodyB.m_xf.R;
-      for (i = 0;
-      i < cc.pointCount; ++i) {
-        tVec = cc.points[i].localPoint;
-        clipPointX = cc.bodyB.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
-        clipPointY = cc.bodyB.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
-        this.m_separations[i] = (clipPointX - planePointX) * this.m_normal.x + (clipPointY - planePointY) * this.m_normal.y - cc.radius;
-        this.m_points[i].x = clipPointX;
-        this.m_points[i].y = clipPointY;
-      }
-    }
-    break;
-  case b2Manifold.e_faceB:
-    {
-      tMat = cc.bodyB.m_xf.R;
-      tVec = cc.localPlaneNormal;
-      this.m_normal.x = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-      this.m_normal.y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-      tMat = cc.bodyB.m_xf.R;
-      tVec = cc.localPoint;
-      planePointX = cc.bodyB.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
-      planePointY = cc.bodyB.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
-      tMat = cc.bodyA.m_xf.R;
-      for (i = 0;
-      i < cc.pointCount; ++i) {
-        tVec = cc.points[i].localPoint;
-        clipPointX = cc.bodyA.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
-        clipPointY = cc.bodyA.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
-        this.m_separations[i] = (clipPointX - planePointX) * this.m_normal.x + (clipPointY - planePointY) * this.m_normal.y - cc.radius;
-        this.m_points[i].Set(clipPointX, clipPointY);
-      }
-      this.m_normal.x *= (-1);
-      this.m_normal.y *= (-1);
-    }
-    break;
-  }
-}
-
-Box2D.inherit(b2BuoyancyController, Box2D.Dynamics.Controllers.b2Controller);
-b2BuoyancyController.prototype.__super = Box2D.Dynamics.Controllers.b2Controller.prototype;
-b2BuoyancyController.b2BuoyancyController = function () {
-  Box2D.Dynamics.Controllers.b2Controller.b2Controller.apply(this, arguments);
-  this.normal = new b2Vec2(0, (-1));
-  this.offset = 0;
-  this.density = 0;
-  this.velocity = new b2Vec2(0, 0);
-  this.linearDrag = 2;
-  this.angularDrag = 1;
-  this.useDensity = false;
-  this.useWorldGravity = true;
-  this.gravity = null;
-};
-b2BuoyancyController.prototype.Step = function (step) {
-  if (!this.m_bodyList) return;
-  if (this.useWorldGravity) {
-    this.gravity = this.GetWorld().GetGravity().Copy();
-  }
-  for (var i = this.m_bodyList; i; i = i.nextBody) {
-    var body = i.body;
-    if (body.IsAwake() == false) {
-      continue;
-    }
-    var areac = new b2Vec2();
-    var massc = new b2Vec2();
-    var area = 0;
-    var mass = 0;
-    for (var fixture = body.GetFixtureList(); fixture; fixture = fixture.GetNext()) {
-      var sc = new b2Vec2();
-      var sarea = fixture.GetShape().ComputeSubmergedArea(this.normal, this.offset, body.GetTransform(), sc);
-      area += sarea;
-      areac.x += sarea * sc.x;
-      areac.y += sarea * sc.y;
-      var shapeDensity = 0;
-      if (this.useDensity) {
-        shapeDensity = 1;
-      } else {
-        shapeDensity = 1;
-      }
-      mass += sarea * shapeDensity;
-      massc.x += sarea * sc.x * shapeDensity;
-      massc.y += sarea * sc.y * shapeDensity;
-    }
-    areac.x /= area;
-    areac.y /= area;
-    massc.x /= mass;
-    massc.y /= mass;
-    if (area < Number.MIN_VALUE) continue;
-    var buoyancyForce = this.gravity.GetNegative();
-    buoyancyForce.Multiply(this.density * area);
-    body.ApplyForce(buoyancyForce, massc);
-    var dragForce = body.GetLinearVelocityFromWorldPoint(areac);
-    dragForce.Subtract(this.velocity);
-    dragForce.Multiply((-this.linearDrag * area));
-    body.ApplyForce(dragForce, areac);
-    body.ApplyTorque((-body.GetInertia() / body.GetMass() * area * body.GetAngularVelocity() * this.angularDrag));
-  }
-}
-b2BuoyancyController.prototype.Draw = function (debugDraw) {
-  var r = 1000;
-  var p1 = new b2Vec2();
-  var p2 = new b2Vec2();
-  p1.x = this.normal.x * this.offset + this.normal.y * r;
-  p1.y = this.normal.y * this.offset - this.normal.x * r;
-  p2.x = this.normal.x * this.offset - this.normal.y * r;
-  p2.y = this.normal.y * this.offset + this.normal.x * r;
-  var color = new b2Color(0, 0, 1);
-  debugDraw.DrawSegment(p1, p2, color);
-}
 Box2D.inherit(b2ConstantAccelController, Box2D.Dynamics.Controllers.b2Controller);
 b2ConstantAccelController.prototype.__super = Box2D.Dynamics.Controllers.b2Controller.prototype;
 b2ConstantAccelController.b2ConstantAccelController = function () {
@@ -10009,8 +10012,6 @@ b2DebugDraw.prototype.DrawTransform = function (xf) {
   c.b2ContactSolver.s_psm = new b2PositionSolverManifold();
   c.b2PositionSolverManifold.circlePointA = new b2Vec2();
   c.b2PositionSolverManifold.circlePointB = new b2Vec2();
-
-  Box2D.Dynamics.Joints.b2RevoluteJoint.tImpulse = new b2Vec2();
 
   var j = dyn.Joints;
   var b2j = j.b2Joint;
