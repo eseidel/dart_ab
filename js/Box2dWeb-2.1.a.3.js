@@ -238,9 +238,9 @@ Box2D.Common.Math.b2Vec2 = Box2D.inherit_({
   SetZero: function() {
     this.x = this.y = 0;
   },
-  Set: function(x_, y_) {
-    this.x = x_;
-    this.y = y_;
+  Set: function(x, y) {
+    this.x = +(x||0);
+    this.y = +(y||0);
   },
   SetV: function(v) {
     this.Set(v.x, v.y);
@@ -2283,8 +2283,7 @@ Box2D.Collision.b2WorldManifold = Box2D.inherit_({
   initialize: function () {
     this.m_normal = new b2Vec2();
     this.m_points = [];
-    var maxPoints = b2Settings.b2_maxManifoldPoints;
-    while(maxPoints--){
+    for (var x = 0; x < b2Settings.b2_maxManifoldPoints; x++) {
       this.m_points.push(new b2Vec2());
     }
   },
@@ -4107,30 +4106,185 @@ function b2BodyDef() {
 };
 Box2D.Dynamics.b2BodyDef = b2BodyDef;
 
-// TODO(slightlyoff): inherit_()
-function b2ContactFilter() {
-   b2ContactFilter.b2ContactFilter.apply(this, arguments);
-};
-Box2D.Dynamics.b2ContactFilter = b2ContactFilter;
+var b2ContactFilter =
+Box2D.Dynamics.b2ContactFilter = Box2D.inherit_({
+  ShouldCollide: function (fixtureA, fixtureB) {
+    var filter1 = fixtureA.GetFilterData();
+    var filter2 = fixtureB.GetFilterData();
+    if (filter1.groupIndex == filter2.groupIndex && filter1.groupIndex != 0) {
+      return filter1.groupIndex > 0;
+    }
+    var collide = (filter1.maskBits & filter2.categoryBits) != 0 && (filter1.categoryBits & filter2.maskBits) != 0;
+    return collide;
+  },
+  RayCollide: function (userData, fixture) {
+    if (!userData) {
+      return true;
+    }
+    return this.ShouldCollide(userData, fixture);
+  },
+});
 
-// TODO(slightlyoff): inherit_()
-function b2ContactImpulse() {
-   b2ContactImpulse.b2ContactImpulse.apply(this, arguments);
-};
-Box2D.Dynamics.b2ContactImpulse = b2ContactImpulse;
+var b2ContactImpulse =
+Box2D.Dynamics.b2ContactImpulse = Box2D.inherit_({
+  initialize: function() {
+    this.normalImpulses = new NVector(b2Settings.b2_maxManifoldPoints);
+    this.tangentImpulses = new NVector(b2Settings.b2_maxManifoldPoints);
+  },
+});
 
-// TODO(slightlyoff): inherit_()
-function b2ContactListener() {
-   b2ContactListener.b2ContactListener.apply(this, arguments);
-};
-Box2D.Dynamics.b2ContactListener = b2ContactListener;
+var b2ContactListener =
+Box2D.Dynamics.b2ContactListener = Box2D.inherit_({
+  BeginContact: function (contact) {},
+  EndContact: function (contact) {},
+  PreSolve: function (contact, oldManifold) {},
+  PostSolve: function (contact, impulse) {},
+});
 
-// TODO(slightlyoff): inherit_()
-function b2ContactManager() {
-   b2ContactManager.b2ContactManager.apply(this, arguments);
-   if (this.constructor === b2ContactManager) this.b2ContactManager.apply(this, arguments);
-};
-Box2D.Dynamics.b2ContactManager = b2ContactManager;
+var b2ContactManager =
+Box2D.Dynamics.b2ContactManager = Box2D.inherit_({
+  initialize: function () {
+    this.m_world = null;
+    this.m_contactCount = 0;
+    this.m_contactFilter = b2ContactFilter.b2_defaultFilter;
+    this.m_contactListener = b2ContactListener.b2_defaultListener;
+    this.m_contactFactory = new b2ContactFactory(this.m_allocator);
+    this.m_broadPhase = new b2DynamicTreeBroadPhase();
+    this._addPair = this.AddPair.bind(this);
+  },
+  AddPair: function(proxyUserDataA, proxyUserDataB) {
+    var fixtureA = (proxyUserDataA instanceof b2Fixture ? proxyUserDataA : null);
+    var fixtureB = (proxyUserDataB instanceof b2Fixture ? proxyUserDataB : null);
+    var bodyA = fixtureA.GetBody();
+    var bodyB = fixtureB.GetBody();
+    if (bodyA == bodyB) return;
+    var edge = bodyB.GetContactList();
+    while (edge) {
+      if (edge.other == bodyA) {
+        var fA = edge.contact.GetFixtureA();
+        var fB = edge.contact.GetFixtureB();
+        if (fA == fixtureA && fB == fixtureB) return;
+        if (fA == fixtureB && fB == fixtureA) return;
+      }
+      edge = edge.next;
+    }
+    if (bodyB.ShouldCollide(bodyA) == false) {
+      return;
+    }
+    if (this.m_contactFilter.ShouldCollide(fixtureA, fixtureB) == false) {
+      return;
+    }
+    var c = this.m_contactFactory.Create(fixtureA, fixtureB);
+    fixtureA = c.GetFixtureA();
+    fixtureB = c.GetFixtureB();
+    bodyA = fixtureA.m_body;
+    bodyB = fixtureB.m_body;
+    c.m_prev = null;
+    c.m_next = this.m_world.m_contactList;
+    if (this.m_world.m_contactList != null) {
+      this.m_world.m_contactList.m_prev = c;
+    }
+    this.m_world.m_contactList = c;
+    c.m_nodeA.contact = c;
+    c.m_nodeA.other = bodyB;
+    c.m_nodeA.prev = null;
+    c.m_nodeA.next = bodyA.m_contactList;
+    if (bodyA.m_contactList != null) {
+      bodyA.m_contactList.prev = c.m_nodeA;
+    }
+    bodyA.m_contactList = c.m_nodeA;
+    c.m_nodeB.contact = c;
+    c.m_nodeB.other = bodyA;
+    c.m_nodeB.prev = null;
+    c.m_nodeB.next = bodyB.m_contactList;
+    if (bodyB.m_contactList != null) {
+      bodyB.m_contactList.prev = c.m_nodeB;
+    }
+    bodyB.m_contactList = c.m_nodeB;
+    ++this.m_world.m_contactCount;
+    return;
+  },
+  FindNewContacts: function() {
+    this.m_broadPhase.UpdatePairs(this._addPair);
+  },
+  Destroy: function(c) {
+    var fixtureA = c.GetFixtureA();
+    var fixtureB = c.GetFixtureB();
+    var bodyA = fixtureA.GetBody();
+    var bodyB = fixtureB.GetBody();
+    if (c.IsTouching()) {
+      this.m_contactListener.EndContact(c);
+    }
+    if (c.m_prev) {
+      c.m_prev.m_next = c.m_next;
+    }
+    if (c.m_next) {
+      c.m_next.m_prev = c.m_prev;
+    }
+    if (c == this.m_world.m_contactList) {
+      this.m_world.m_contactList = c.m_next;
+    }
+    if (c.m_nodeA.prev) {
+      c.m_nodeA.prev.next = c.m_nodeA.next;
+    }
+    if (c.m_nodeA.next) {
+      c.m_nodeA.next.prev = c.m_nodeA.prev;
+    }
+    if (c.m_nodeA == bodyA.m_contactList) {
+      bodyA.m_contactList = c.m_nodeA.next;
+    }
+    if (c.m_nodeB.prev) {
+      c.m_nodeB.prev.next = c.m_nodeB.next;
+    }
+    if (c.m_nodeB.next) {
+      c.m_nodeB.next.prev = c.m_nodeB.prev;
+    }
+    if (c.m_nodeB == bodyB.m_contactList) {
+      bodyB.m_contactList = c.m_nodeB.next;
+    }
+    this.m_contactFactory.Destroy(c);
+    --this.m_contactCount;
+  },
+  Collide: function() {
+    var c = this.m_world.m_contactList;
+    while (c) {
+      var fixtureA = c.GetFixtureA();
+      var fixtureB = c.GetFixtureB();
+      var bodyA = fixtureA.GetBody();
+      var bodyB = fixtureB.GetBody();
+      if (bodyA.IsAwake() == false && bodyB.IsAwake() == false) {
+        c = c.GetNext();
+        continue;
+      }
+      if (c.m_flags & b2Contact.e_filterFlag) {
+        if (bodyB.ShouldCollide(bodyA) == false) {
+          var cNuke = c;
+          c = cNuke.GetNext();
+          this.Destroy(cNuke);
+          continue;
+        }
+        if (this.m_contactFilter.ShouldCollide(fixtureA, fixtureB) == false) {
+          cNuke = c;
+          c = cNuke.GetNext();
+          this.Destroy(cNuke);
+          continue;
+        }
+        c.m_flags &= ~b2Contact.e_filterFlag;
+      }
+      var proxyA = fixtureA.m_proxy;
+      var proxyB = fixtureB.m_proxy;
+      var overlap = this.m_broadPhase.TestOverlap(proxyA, proxyB);
+      if (overlap == false) {
+        cNuke = c;
+        c = cNuke.GetNext();
+        this.Destroy(cNuke);
+        continue;
+      }
+      c.Update(this.m_contactListener);
+      c = c.GetNext();
+    }
+  },
+});
 
 // TODO(slightlyoff): inherit_()
 function b2DebugDraw() {
@@ -4139,17 +4293,36 @@ function b2DebugDraw() {
 };
 Box2D.Dynamics.b2DebugDraw = b2DebugDraw;
 
+/*
 // TODO(slightlyoff): inherit_()
 function b2DestructionListener() {
    b2DestructionListener.b2DestructionListener.apply(this, arguments);
 };
 Box2D.Dynamics.b2DestructionListener = b2DestructionListener;
+*/
 
-// TODO(slightlyoff): inherit_()
-function b2FilterData() {
-   b2FilterData.b2FilterData.apply(this, arguments);
-};
-Box2D.Dynamics.b2FilterData = b2FilterData;
+var b2DestructionListener =
+Box2D.Dynamics.b2DestructionListener = Box2D.inherit_({
+  SayGoodbyeJoint: function(joint) {},
+  SayGoodbyeFixture: function(fixture) {},
+});
+
+var b2FilterData =
+Box2D.Dynamics.b2FilterData = Box2D.inherit_({
+  initialize: function() {
+    this.categoryBits = 0x0001;
+    this.maskBits = 0xFFFF;
+    this.groupIndex = 0;
+  },
+  Copy: function () {
+    var copy = new b2FilterData();
+    copy.categoryBits = this.categoryBits;
+    copy.maskBits = this.maskBits;
+    copy.groupIndex = this.groupIndex;
+    return copy;
+  },
+});
+
 
 function b2Fixture() {
    b2Fixture.b2Fixture.apply(this, arguments);
@@ -4555,177 +4728,13 @@ b2BodyDef.prototype.b2BodyDef = function () {
   this.active = true;
   this.inertiaScale = 1;
 }
-b2ContactFilter.b2ContactFilter = function () {};
-b2ContactFilter.prototype.ShouldCollide = function (fixtureA, fixtureB) {
-  var filter1 = fixtureA.GetFilterData();
-  var filter2 = fixtureB.GetFilterData();
-  if (filter1.groupIndex == filter2.groupIndex && filter1.groupIndex != 0) {
-    return filter1.groupIndex > 0;
-  }
-  var collide = (filter1.maskBits & filter2.categoryBits) != 0 && (filter1.categoryBits & filter2.maskBits) != 0;
-  return collide;
-}
-b2ContactFilter.prototype.RayCollide = function (userData, fixture) {
-  if (!userData) return true;
-  return this.ShouldCollide((userData instanceof b2Fixture ? userData : null), fixture);
-}
+
 Box2D.postDefs.push(function () {
   Box2D.Dynamics.b2ContactFilter.b2_defaultFilter = new b2ContactFilter();
 });
-b2ContactImpulse.b2ContactImpulse = function () {
-  this.normalImpulses = new NVector(b2Settings.b2_maxManifoldPoints);
-  this.tangentImpulses = new NVector(b2Settings.b2_maxManifoldPoints);
-};
-b2ContactListener.b2ContactListener = function () {};
-b2ContactListener.prototype.BeginContact = function (contact) {}
-b2ContactListener.prototype.EndContact = function (contact) {}
-b2ContactListener.prototype.PreSolve = function (contact, oldManifold) {}
-b2ContactListener.prototype.PostSolve = function (contact, impulse) {}
 Box2D.postDefs.push(function () {
   Box2D.Dynamics.b2ContactListener.b2_defaultListener = new b2ContactListener();
 });
-b2ContactManager.b2ContactManager = function () {};
-b2ContactManager.prototype.b2ContactManager = function () {
-  this.m_world = null;
-  this.m_contactCount = 0;
-  this.m_contactFilter = b2ContactFilter.b2_defaultFilter;
-  this.m_contactListener = b2ContactListener.b2_defaultListener;
-  this.m_contactFactory = new b2ContactFactory(this.m_allocator);
-  this.m_broadPhase = new b2DynamicTreeBroadPhase();
-  this._addPair = this.AddPair.bind(this);
-}
-b2ContactManager.prototype.AddPair = function (proxyUserDataA, proxyUserDataB) {
-  var fixtureA = (proxyUserDataA instanceof b2Fixture ? proxyUserDataA : null);
-  var fixtureB = (proxyUserDataB instanceof b2Fixture ? proxyUserDataB : null);
-  var bodyA = fixtureA.GetBody();
-  var bodyB = fixtureB.GetBody();
-  if (bodyA == bodyB) return;
-  var edge = bodyB.GetContactList();
-  while (edge) {
-    if (edge.other == bodyA) {
-      var fA = edge.contact.GetFixtureA();
-      var fB = edge.contact.GetFixtureB();
-      if (fA == fixtureA && fB == fixtureB) return;
-      if (fA == fixtureB && fB == fixtureA) return;
-    }
-    edge = edge.next;
-  }
-  if (bodyB.ShouldCollide(bodyA) == false) {
-    return;
-  }
-  if (this.m_contactFilter.ShouldCollide(fixtureA, fixtureB) == false) {
-    return;
-  }
-  var c = this.m_contactFactory.Create(fixtureA, fixtureB);
-  fixtureA = c.GetFixtureA();
-  fixtureB = c.GetFixtureB();
-  bodyA = fixtureA.m_body;
-  bodyB = fixtureB.m_body;
-  c.m_prev = null;
-  c.m_next = this.m_world.m_contactList;
-  if (this.m_world.m_contactList != null) {
-    this.m_world.m_contactList.m_prev = c;
-  }
-  this.m_world.m_contactList = c;
-  c.m_nodeA.contact = c;
-  c.m_nodeA.other = bodyB;
-  c.m_nodeA.prev = null;
-  c.m_nodeA.next = bodyA.m_contactList;
-  if (bodyA.m_contactList != null) {
-    bodyA.m_contactList.prev = c.m_nodeA;
-  }
-  bodyA.m_contactList = c.m_nodeA;
-  c.m_nodeB.contact = c;
-  c.m_nodeB.other = bodyA;
-  c.m_nodeB.prev = null;
-  c.m_nodeB.next = bodyB.m_contactList;
-  if (bodyB.m_contactList != null) {
-    bodyB.m_contactList.prev = c.m_nodeB;
-  }
-  bodyB.m_contactList = c.m_nodeB;
-  ++this.m_world.m_contactCount;
-  return;
-}
-b2ContactManager.prototype.FindNewContacts = function () {
-  this.m_broadPhase.UpdatePairs(this._addPair);
-}
-b2ContactManager.prototype.Destroy = function (c) {
-  var fixtureA = c.GetFixtureA();
-  var fixtureB = c.GetFixtureB();
-  var bodyA = fixtureA.GetBody();
-  var bodyB = fixtureB.GetBody();
-  if (c.IsTouching()) {
-    this.m_contactListener.EndContact(c);
-  }
-  if (c.m_prev) {
-    c.m_prev.m_next = c.m_next;
-  }
-  if (c.m_next) {
-    c.m_next.m_prev = c.m_prev;
-  }
-  if (c == this.m_world.m_contactList) {
-    this.m_world.m_contactList = c.m_next;
-  }
-  if (c.m_nodeA.prev) {
-    c.m_nodeA.prev.next = c.m_nodeA.next;
-  }
-  if (c.m_nodeA.next) {
-    c.m_nodeA.next.prev = c.m_nodeA.prev;
-  }
-  if (c.m_nodeA == bodyA.m_contactList) {
-    bodyA.m_contactList = c.m_nodeA.next;
-  }
-  if (c.m_nodeB.prev) {
-    c.m_nodeB.prev.next = c.m_nodeB.next;
-  }
-  if (c.m_nodeB.next) {
-    c.m_nodeB.next.prev = c.m_nodeB.prev;
-  }
-  if (c.m_nodeB == bodyB.m_contactList) {
-    bodyB.m_contactList = c.m_nodeB.next;
-  }
-  this.m_contactFactory.Destroy(c);
-  --this.m_contactCount;
-}
-b2ContactManager.prototype.Collide = function () {
-  var c = this.m_world.m_contactList;
-  while (c) {
-    var fixtureA = c.GetFixtureA();
-    var fixtureB = c.GetFixtureB();
-    var bodyA = fixtureA.GetBody();
-    var bodyB = fixtureB.GetBody();
-    if (bodyA.IsAwake() == false && bodyB.IsAwake() == false) {
-      c = c.GetNext();
-      continue;
-    }
-    if (c.m_flags & b2Contact.e_filterFlag) {
-      if (bodyB.ShouldCollide(bodyA) == false) {
-        var cNuke = c;
-        c = cNuke.GetNext();
-        this.Destroy(cNuke);
-        continue;
-      }
-      if (this.m_contactFilter.ShouldCollide(fixtureA, fixtureB) == false) {
-        cNuke = c;
-        c = cNuke.GetNext();
-        this.Destroy(cNuke);
-        continue;
-      }
-      c.m_flags &= ~b2Contact.e_filterFlag;
-    }
-    var proxyA = fixtureA.m_proxy;
-    var proxyB = fixtureB.m_proxy;
-    var overlap = this.m_broadPhase.TestOverlap(proxyA, proxyB);
-    if (overlap == false) {
-      cNuke = c;
-      c = cNuke.GetNext();
-      this.Destroy(cNuke);
-      continue;
-    }
-    c.Update(this.m_contactListener);
-    c = c.GetNext();
-  }
-}
 Box2D.postDefs.push(function () {
   Box2D.Dynamics.b2ContactManager.s_evalCP = new b2ContactPoint();
 });
@@ -4785,21 +4794,7 @@ Box2D.postDefs.push(function () {
   Box2D.Dynamics.b2DebugDraw.e_centerOfMassBit = 0x0010;
   Box2D.Dynamics.b2DebugDraw.e_controllerBit = 0x0020;
 });
-b2DestructionListener.b2DestructionListener = function () {};
-b2DestructionListener.prototype.SayGoodbyeJoint = function (joint) {}
-b2DestructionListener.prototype.SayGoodbyeFixture = function (fixture) {}
-b2FilterData.b2FilterData = function () {
-  this.categoryBits = 0x0001;
-  this.maskBits = 0xFFFF;
-  this.groupIndex = 0;
-};
-b2FilterData.prototype.Copy = function () {
-  var copy = new b2FilterData();
-  copy.categoryBits = this.categoryBits;
-  copy.maskBits = this.maskBits;
-  copy.groupIndex = this.groupIndex;
-  return copy;
-}
+
 b2Fixture.b2Fixture = function () {
   this.m_filter = new b2FilterData();
 };
@@ -6723,6 +6718,8 @@ Box2D.postDefs.push(function () {
   Box2D.Dynamics.Contacts.b2ContactSolver.s_psm =
       new b2PositionSolverManifold();
 });
+
+
 Box2D.inherit(b2EdgeAndCircleContact, Box2D.Dynamics.Contacts.b2Contact);
 b2EdgeAndCircleContact.prototype.__super = Box2D.Dynamics.Contacts.b2Contact.prototype;
 b2EdgeAndCircleContact.b2EdgeAndCircleContact = function () {
@@ -6741,6 +6738,8 @@ b2EdgeAndCircleContact.prototype.Evaluate = function () {
   this.b2CollideEdgeAndCircle(this.m_manifold, (this.m_fixtureA.GetShape() instanceof b2EdgeShape ? this.m_fixtureA.GetShape() : null), bA.m_xf, (this.m_fixtureB.GetShape() instanceof b2CircleShape ? this.m_fixtureB.GetShape() : null), bB.m_xf);
 }
 b2EdgeAndCircleContact.prototype.b2CollideEdgeAndCircle = function (manifold, edge, xf1, circle, xf2) {}
+
+
 Box2D.inherit(b2NullContact, Box2D.Dynamics.Contacts.b2Contact);
 b2NullContact.prototype.__super = Box2D.Dynamics.Contacts.b2Contact.prototype;
 b2NullContact.b2NullContact = function () {
@@ -6750,6 +6749,8 @@ b2NullContact.prototype.b2NullContact = function () {
   this.__super.b2Contact.call(this);
 }
 b2NullContact.prototype.Evaluate = function () {}
+
+
 Box2D.inherit(b2PolyAndCircleContact, Box2D.Dynamics.Contacts.b2Contact);
 b2PolyAndCircleContact.prototype.__super = Box2D.Dynamics.Contacts.b2Contact.prototype;
 b2PolyAndCircleContact.b2PolyAndCircleContact = function () {
@@ -6769,6 +6770,8 @@ b2PolyAndCircleContact.prototype.Evaluate = function () {
   var bB = this.m_fixtureB.m_body;
   b2Collision.CollidePolygonAndCircle(this.m_manifold, (this.m_fixtureA.GetShape() instanceof b2PolygonShape ? this.m_fixtureA.GetShape() : null), bA.m_xf, (this.m_fixtureB.GetShape() instanceof b2CircleShape ? this.m_fixtureB.GetShape() : null), bB.m_xf);
 }
+
+
 Box2D.inherit(b2PolyAndEdgeContact, Box2D.Dynamics.Contacts.b2Contact);
 b2PolyAndEdgeContact.prototype.__super = Box2D.Dynamics.Contacts.b2Contact.prototype;
 b2PolyAndEdgeContact.b2PolyAndEdgeContact = function () {
@@ -6789,6 +6792,8 @@ b2PolyAndEdgeContact.prototype.Evaluate = function () {
   this.b2CollidePolyAndEdge(this.m_manifold, (this.m_fixtureA.GetShape() instanceof b2PolygonShape ? this.m_fixtureA.GetShape() : null), bA.m_xf, (this.m_fixtureB.GetShape() instanceof b2EdgeShape ? this.m_fixtureB.GetShape() : null), bB.m_xf);
 }
 b2PolyAndEdgeContact.prototype.b2CollidePolyAndEdge = function (manifold, polygon, xf1, edge, xf2) {}
+
+
 Box2D.inherit(b2PolygonContact, Box2D.Dynamics.Contacts.b2Contact);
 b2PolygonContact.prototype.__super = Box2D.Dynamics.Contacts.b2Contact.prototype;
 b2PolygonContact.b2PolygonContact = function () {
@@ -6806,6 +6811,8 @@ b2PolygonContact.prototype.Evaluate = function () {
   var bB = this.m_fixtureB.GetBody();
   b2Collision.CollidePolygons(this.m_manifold, (this.m_fixtureA.GetShape() instanceof b2PolygonShape ? this.m_fixtureA.GetShape() : null), bA.m_xf, (this.m_fixtureB.GetShape() instanceof b2PolygonShape ? this.m_fixtureB.GetShape() : null), bB.m_xf);
 }
+
+
 b2PositionSolverManifold.b2PositionSolverManifold = function () {};
 b2PositionSolverManifold.prototype.b2PositionSolverManifold = function () {
   this.m_normal = new b2Vec2();
