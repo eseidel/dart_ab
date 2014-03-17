@@ -19,7 +19,6 @@
 
 
 var scope = this;
-function emptyFn() {};
 var Box2D = {
   inherit: function(props) {
     var ctor = null;
@@ -36,17 +35,10 @@ var Box2D = {
     }
 
     var realCtor = ctor || function() { };
-
-    if (props["_t"]) {
-      _t_map[props["_t"]] = realCtor;
-    }
-
     var rp = realCtor.prototype = Object.create(
       ((parent) ? parent.prototype : Object.prototype)
     );
-
     Box2D.extend(rp, props);
-
     return realCtor;
   },
 
@@ -74,18 +66,6 @@ var Box2D = {
       }
     });
     return obj;
-  },
-
-  // FIXME(slighltyoff)
-  is: function is(o1, o2) {
-     if (o1 === null) return false;
-     if ((o2 instanceof Function) && (o1 instanceof o2)) return true;
-     if ((o1.constructor.__implements != undefined) && (o1.constructor.__implements[o2])) return true;
-     return false;
-  },
-
-  parseUInt: function(v) {
-    return Math.abs(parseInt(v));
   },
 
   // Package Structure
@@ -621,9 +601,9 @@ b2Collision.FindMaxSeparation = function (edgeIndex, poly1, xf1, poly2, xf2) {
       }
    }
    var s = b2Collision.EdgeSeparation(poly1, xf1, edge, poly2, xf2);
-   var prevEdge = parseInt(edge - 1 >= 0 ? edge - 1 : count1 - 1);
+   var prevEdge = (edge - 1 >= 0 ? edge - 1 : count1 - 1);
    var sPrev = b2Collision.EdgeSeparation(poly1, xf1, prevEdge, poly2, xf2);
-   var nextEdge = parseInt(edge + 1 < count1 ? edge + 1 : 0);
+   var nextEdge = (edge + 1 < count1 ? edge + 1 : 0);
    var sNext = b2Collision.EdgeSeparation(poly1, xf1, nextEdge, poly2, xf2);
    var bestEdge = 0;
    var bestSeparation = 0;
@@ -685,8 +665,8 @@ b2Collision.FindIncidentEdge = function (c, poly1, xf1, edge1, poly2, xf2) {
       }
    }
    var tClip;
-   var i1 = parseInt(index);
-   var i2 = parseInt(i1 + 1 < count2 ? i1 + 1 : 0);
+   var i1 = index;
+   var i2 = i1 + 1 < count2 ? i1 + 1 : 0;
    tClip = c[0];
    tVec = vertices2[i1];
    tMat = xf2.R;
@@ -706,10 +686,10 @@ b2Collision.FindIncidentEdge = function (c, poly1, xf1, edge1, poly2, xf2) {
 };
 
 b2Collision.MakeClipPointVector = function () {
-   var r = new Vector(2);
-   r[0] = new ClipVertex();
-   r[1] = new ClipVertex();
-   return r;
+  return [
+    new ClipVertex(),
+    new ClipVertex()
+  ];
 };
 
 b2Collision.CollidePolygons = function (manifold, polyA, xfA, polyB, xfB) {
@@ -761,7 +741,7 @@ b2Collision.CollidePolygons = function (manifold, polyA, xfA, polyB, xfB) {
    var local_v11 = vertices1[edge1];
    var local_v12;
    if (edge1 + 1 < count1) {
-      local_v12 = vertices1[parseInt(edge1 + 1)];
+      local_v12 = vertices1[edge1 + 1];
    } else {
       local_v12 = vertices1[0];
    }
@@ -872,7 +852,7 @@ b2Collision.CollidePolygonAndCircle = function(manifold, polygon, xf1, circle, x
   var normalIndex = 0;
   var separation = (-Number.MAX_VALUE);
   var radius = polygon.m_radius + circle.m_radius;
-  var vertexCount = parseInt(polygon.vertexCount);
+  var vertexCount = polygon.vertexCount;
   var vertices = polygon.m_vertices;
   var normals = polygon.m_normals;
   for (var i = 0; i < vertexCount; ++i) {
@@ -889,8 +869,8 @@ b2Collision.CollidePolygonAndCircle = function(manifold, polygon, xf1, circle, x
         normalIndex = i;
      }
   }
-  var vertIndex1 = parseInt(normalIndex);
-  var vertIndex2 = parseInt(vertIndex1 + 1 < vertexCount ? vertIndex1 + 1 : 0);
+  var vertIndex1 = normalIndex;
+  var vertIndex2 = vertIndex1 + 1 < vertexCount ? vertIndex1 + 1 : 0;
   var v1 = vertices[vertIndex1];
   var v2 = vertices[vertIndex2];
   if (separation < Number.MIN_VALUE) {
@@ -1219,7 +1199,7 @@ Box2D.Collision.b2DynamicTree = Box2D.inherit({
   // FIXME: too hot!
   Query: function (callback, aabb) {
     if (this.m_root == null) return;
-    var stack = new Vector();
+    var stack = new Array();
     var count = 0;
     var node;
     var proceed = true;
@@ -1255,7 +1235,7 @@ Box2D.Collision.b2DynamicTree = Box2D.inherit({
     segmentAABB.lowerBound.y = Math.min(p1.y, tY);
     segmentAABB.upperBound.x = Math.max(p1.x, tX);
     segmentAABB.upperBound.y = Math.max(p1.y, tY);
-    var stack = new Vector();
+    var stack = new Array();
     var count = 0;
     stack[count++] = this.m_root;
     while (count > 0) {
@@ -1393,8 +1373,8 @@ var b2DynamicTreeBroadPhase =
 Box2D.Collision.b2DynamicTreeBroadPhase = Box2D.inherit({
   initialize: function() {
     this.m_tree = new b2DynamicTree();
-    this.m_moveBuffer = new Vector();
-    this.m_pairBuffer = new Vector();
+    this.m_moveBuffer = new Array();
+    this.m_pairBuffer = new Array();
     this.m_pairCount = 0;
   },
   CreateProxy: function (aabb, userData) {
@@ -1559,7 +1539,7 @@ var b2Manifold =
 Box2D.Collision.b2Manifold = Box2D.inherit({
   initialize: function() {
     this.m_pointCount = 0;
-    this.m_points = new Vector(b2Settings.b2_maxManifoldPoints);
+    this.m_points = new Array(b2Settings.b2_maxManifoldPoints);
     for (var i = 0; i < b2Settings.b2_maxManifoldPoints; i++) {
       this.m_points[i] = new b2ManifoldPoint();
     }
@@ -1951,11 +1931,11 @@ Box2D.Collision.b2Simplex = Box2D.inherit({
   },
   WriteCache: function (cache) {
     cache.metric = this.GetMetric();
-    cache.count = Box2D.parseUInt(this.m_count);
+    cache.count = Math.abs(this.m_count);
     var vertices = this.m_vertices;
     for (var i = 0; i < this.m_count; i++) {
-      cache.indexA[i] = Box2D.parseUInt(vertices[i].indexA);
-      cache.indexB[i] = Box2D.parseUInt(vertices[i].indexB);
+      cache.indexA[i] = Math.abs(vertices[i].indexA);
+      cache.indexB[i] = Math.abs(vertices[i].indexB);
     }
   },
   GetSearchDirection: function () {
@@ -2460,7 +2440,7 @@ Box2D.Collision.Shapes.b2CircleShape = Box2D.inherit({
   },
   Set: function(other) {
     b2Shape.prototype.Set.call(this, other);
-    if (Box2D.is(other, b2CircleShape)) {
+    if (other instanceof b2CircleShape) {
       this.m_p.SetV(other.m_p);
     }
   },
@@ -2757,8 +2737,8 @@ Box2D.Collision.Shapes.b2PolygonShape = Box2D.inherit({
   initialize: function () {
     b2Shape.call(this);
     this.m_centroid = new b2Vec2();
-    this.m_vertices = new Vector();
-    this.m_normals = new Vector();
+    this.m_vertices = new Array();
+    this.m_normals = new Array();
     this.m_type = b2Shape.e_polygonShape; // FIXME(slightlyoff)
   },
 
@@ -2769,20 +2749,19 @@ Box2D.Collision.Shapes.b2PolygonShape = Box2D.inherit({
   },
   Set: function(other) {
     b2Shape.prototype.Set.call(this, other);
-    if (Box2D.is(other, b2PolygonShape)) {
-      var other2 = (other instanceof b2PolygonShape ? other : null);
-      this.m_centroid.SetV(other2.m_centroid);
-      this.vertexCount = other2.vertexCount;
+    if (other instanceof b2PolygonShape) {
+      this.m_centroid.SetV(other.m_centroid);
+      this.vertexCount = other.vertexCount;
       this.Reserve(this.vertexCount);
       for (var i = 0; i < this.vertexCount; i++) {
-        this.m_vertices[i].SetV(other2.m_vertices[i]);
-        this.m_normals[i].SetV(other2.m_normals[i]);
+        this.m_vertices[i].SetV(other.m_vertices[i]);
+        this.m_normals[i].SetV(other.m_normals[i]);
       }
     }
   },
   SetAsArray: function(vertices, vertexCount) {
     if (vertexCount === undefined) vertexCount = 0;
-    var v = new Vector();
+    var v = new Array();
     var i = 0, tVec;
     for (i = 0; i < vertices.length; ++i) {
       tVec = vertices[i];
@@ -3174,7 +3153,7 @@ b2PolygonShape.ComputeCentroid = function (vs, count) {
 b2PolygonShape.ComputeOBB = function (obb, vs, count) {
   if (count === undefined) count = 0;
   var i = 0;
-  var p = new Vector(count + 1);
+  var p = new Array(count + 1);
   for (i = 0; i < count; ++i) {
     p[i] = vs[i];
   }
@@ -3233,15 +3212,15 @@ Box2D.Common.b2Color = Box2D.inherit({
   },
   set r(rr) {
     // if (rr === undefined) rr = 0;
-    this._r = Box2D.parseUInt(255 * b2Math.Clamp(rr, 0, 1));
+    this._r = Math.abs(255 * b2Math.Clamp(rr, 0, 1));
   },
   set g(gg) {
     // if (gg === undefined) gg = 0;
-    this._g = Box2D.parseUInt(255 * b2Math.Clamp(gg, 0, 1));
+    this._g = Math.abs(255 * b2Math.Clamp(gg, 0, 1));
   },
   set b(bb) {
     // if (bb === undefined) bb = 0;
-    this._b = Box2D.parseUInt(255 * b2Math.Clamp(bb, 0, 1));
+    this._b = Math.abs(255 * b2Math.Clamp(bb, 0, 1));
   },
   get color() {
     // FIXME(slightlyoff): bitmasking isn't particularly fast in JS
@@ -4449,9 +4428,9 @@ Box2D.Dynamics.b2FixtureDef = Box2D.inherit({
 var b2Island =
 Box2D.Dynamics.b2Island = Box2D.inherit({
   initialize: function () {
-    this.m_bodies = new Vector();
-    this.m_contacts = new Vector();
-    this.m_joints = new Vector();
+    this.m_bodies = new Array();
+    this.m_contacts = new Array();
+    this.m_joints = new Array();
   },
 
   Initialize: function(bodyCapacity, contactCapacity, jointCapacity, allocator, listener, contactSolver) {
@@ -4682,7 +4661,7 @@ Box2D.Dynamics.b2TimeStep = Box2D.inherit({
 var b2World =
 Box2D.Dynamics.b2World = Box2D.inherit({
   initialize: function (gravity, doSleep) {
-    this.s_stack = new Vector();
+    this.s_stack = new Array();
     this.m_contactManager = new b2ContactManager();
     this.m_contactSolver = new b2ContactSolver();
     this.m_island = new b2Island();
@@ -5144,7 +5123,7 @@ Box2D.Dynamics.b2World = Box2D.inherit({
   },
   RayCastAll: function(point1, point2) {
     var __this = this;
-    var result = new Vector();
+    var result = new Array();
 
     // FIXME(slightlyoff): alloc
     function RayCastAllWrapper(fixture, point, normal, fraction) {
@@ -5502,7 +5481,7 @@ Box2D.Dynamics.b2World = Box2D.inherit({
         var poly = ((shape instanceof b2PolygonShape ? shape : null));
         var vertexCount = poly.vertexCount;
         var localVertices = poly.GetVertices();
-        var vertices = new Vector(vertexCount);
+        var vertices = new Array(vertexCount);
         for (i = 0;
         i < vertexCount; ++i) {
           vertices[i] = b2Math.MulX(xf, localVertices[i]);
@@ -5760,9 +5739,9 @@ Box2D.Dynamics.Contacts.b2ContactFactory = Box2D.inherit({
     }
   },
   InitializeRegisters: function() {
-    this.m_registers = new Vector(b2Shape.e_shapeTypeCount);
+    this.m_registers = new Array(b2Shape.e_shapeTypeCount);
     for (var i = 0; i < b2Shape.e_shapeTypeCount; i++) {
-      this.m_registers[i] = new Vector(b2Shape.e_shapeTypeCount);
+      this.m_registers[i] = new Array(b2Shape.e_shapeTypeCount);
       for (var j = 0; j < b2Shape.e_shapeTypeCount; j++) {
         this.m_registers[i][j] = new b2ContactRegister();
       }
@@ -5837,7 +5816,7 @@ var b2ContactSolver =
 Box2D.Dynamics.Contacts.b2ContactSolver = Box2D.inherit({
   initialize: function () {
     this.m_step = new b2TimeStep();
-    this.m_constraints = new Vector();
+    this.m_constraints = new Array();
   },
   Initialize: function(step, contacts, contactCount, allocator) {
     if (contactCount === undefined) contactCount = 0;
@@ -9701,7 +9680,7 @@ b2DebugDraw.prototype.DrawTransform = function (xf) {
   dyn.b2World.s_backupA = new b2Sweep();
   dyn.b2World.s_backupB = new b2Sweep();
   dyn.b2World.s_timestep = new b2TimeStep();
-  dyn.b2World.s_queue = new Vector();
+  dyn.b2World.s_queue = new Array();
   dyn.b2World.s_jointColor = new b2Color(0.5, 0.8, 0.8);
   dyn.b2World.e_newFixture = 0x0001;
   dyn.b2World.e_locked = 0x0002;
