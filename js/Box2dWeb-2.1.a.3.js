@@ -6731,63 +6731,689 @@ Box2D.Dynamics.Controllers.b2TensorDampingController = Box2D.inherit_({
   },
 });
 
-
-
-
-// TODO(slightlyoff): inherit_()
-function b2DistanceJoint() {
-   b2DistanceJoint.b2DistanceJoint.apply(this, arguments);
-   if (this.constructor === b2DistanceJoint) this.b2DistanceJoint.apply(this, arguments);
+var b2Joint =
+Box2D.Dynamics.Joints.b2Joint = Box2D.inherit_({
+  initialize: function (def) {
+    this.m_edgeA = new b2JointEdge();
+    this.m_edgeB = new b2JointEdge();
+    this.m_localCenterA = new b2Vec2();
+    this.m_localCenterB = new b2Vec2();
+    this.m_type = def.type; // FIXME
+    this.m_prev = null;
+    this.m_next = null;
+    this.m_bodyA = def.bodyA;
+    this.m_bodyB = def.bodyB;
+    this.m_collideConnected = def.collideConnected;
+    this.m_islandFlag = false;
+    this.userData = def.userData;
+  },
+  GetType: function() { return this.m_type; },
+  GetAnchorA: function() { return null; },
+  GetAnchorB: function() { return null; },
+  GetReactionForce: function(inv_dt) { return null; },
+  GetReactionTorque: function(inv_dt) { return 0; },
+  GetBodyA: function() { return this.m_bodyA; },
+  GetBodyB: function() { return this.m_bodyB; },
+  GetNext: function() { return this.m_next; },
+  SetUserData: function(data) { this.userData = data; },
+  IsActive: function() {
+    return this.m_bodyA.IsActive() && this.m_bodyB.IsActive();
+  },
+  InitVelocityConstraints: function(step) {},
+  SolveVelocityConstraints: function(step) {},
+  FinalizeVelocityConstraints: function() {},
+  SolvePositionConstraints: function(baumgarte) { return false; },
+});
+b2Joint.Create = function(def, allocator) {
+  var joint = null;
+  switch (def.type) {
+  case b2Joint.e_distanceJoint:
+    joint = new b2DistanceJoint(def);
+    break;
+  case b2Joint.e_mouseJoint:
+    joint = new b2MouseJoint(def);
+    break;
+  case b2Joint.e_prismaticJoint:
+    joint = new b2PrismaticJoint(def);
+    break;
+  case b2Joint.e_revoluteJoint:
+    joint = new b2RevoluteJoint(def);
+    break;
+  case b2Joint.e_pulleyJoint:
+    joint = new b2PulleyJoint(def);
+    break;
+  case b2Joint.e_gearJoint:
+    joint = new b2GearJoint(def);
+    break;
+  case b2Joint.e_lineJoint:
+    joint = new b2LineJoint(def);
+    break;
+  case b2Joint.e_weldJoint:
+    joint = new b2WeldJoint(def);
+    break;
+  case b2Joint.e_frictionJoint:
+    joint = new b2FrictionJoint(def);
+    break;
+  default:
+    break;
+  }
+  return joint;
 };
-Box2D.Dynamics.Joints.b2DistanceJoint = b2DistanceJoint;
+b2Joint.Destroy = function(joint, allocator) {};
 
-// TODO(slightlyoff): inherit_()
-function b2DistanceJointDef() {
-   b2DistanceJointDef.b2DistanceJointDef.apply(this, arguments);
-   if (this.constructor === b2DistanceJointDef) this.b2DistanceJointDef.apply(this, arguments);
+// FIXME(slightlyoff): clobber when Joint types are ported
+b2Joint.b2Joint =
+b2Joint.prototype.b2Joint = function(def) {
+  b2Joint.call(this, def);
 };
-Box2D.Dynamics.Joints.b2DistanceJointDef = b2DistanceJointDef;
 
-// TODO(slightlyoff): inherit_()
-function b2FrictionJoint() {
-   b2FrictionJoint.b2FrictionJoint.apply(this, arguments);
-   if (this.constructor === b2FrictionJoint) this.b2FrictionJoint.apply(this, arguments);
-};
-Box2D.Dynamics.Joints.b2FrictionJoint = b2FrictionJoint;
+var b2DistanceJoint =
+Box2D.Dynamics.Joints.b2DistanceJoint = Box2D.inherit_({
+  extends: b2Joint,
+  initialize: function(def) {
+    b2Joint.call(this, def);
+    this.m_localAnchor1 = new b2Vec2();
+    this.m_localAnchor2 = new b2Vec2();
+    this.m_u = new b2Vec2();
+    var tMat;
+    var tX = 0;
+    var tY = 0;
+    this.m_localAnchor1.SetV(def.localAnchorA);
+    this.m_localAnchor2.SetV(def.localAnchorB);
+    this.m_length = def.length;
+    this.m_frequencyHz = def.frequencyHz;
+    this.m_dampingRatio = def.dampingRatio;
+    this.m_impulse = 0;
+    this.m_gamma = 0;
+    this.m_bias = 0;
+  },
+  GetAnchorA: function () {
+    return this.m_bodyA.GetWorldPoint(this.m_localAnchor1);
+  },
+  GetAnchorB: function () {
+    return this.m_bodyB.GetWorldPoint(this.m_localAnchor2);
+  },
+  GetReactionForce: function (inv_dt) {
+    if (inv_dt === undefined) inv_dt = 0;
+    return new b2Vec2(inv_dt * this.m_impulse * this.m_u.x, inv_dt * this.m_impulse * this.m_u.y);
+  },
+  GetReactionTorque: function (inv_dt) {
+    if (inv_dt === undefined) inv_dt = 0;
+    return 0;
+  },
+  GetLength: function () { return this.m_length; },
+  SetLength: function (length) {
+    if (length === undefined) length = 0;
+    this.m_length = length;
+  },
+  GetFrequency: function () { return this.m_frequencyHz; },
+  SetFrequency: function (hz) {
+    if (hz === undefined) hz = 0;
+    this.m_frequencyHz = hz;
+  },
+  GetDampingRatio: function () {
+    return this.m_dampingRatio;
+  },
+  SetDampingRatio: function (ratio) {
+    if (ratio === undefined) ratio = 0;
+    this.m_dampingRatio = ratio;
+  },
+  InitVelocityConstraints: function (step) {
+    var tMat;
+    var tX = 0;
+    var bA = this.m_bodyA;
+    var bB = this.m_bodyB;
+    tMat = bA.m_xf.R;
+    var r1X = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
+    var r1Y = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
+    tX = (tMat.col1.x * r1X + tMat.col2.x * r1Y);
+    r1Y = (tMat.col1.y * r1X + tMat.col2.y * r1Y);
+    r1X = tX;
+    tMat = bB.m_xf.R;
+    var r2X = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
+    var r2Y = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
+    tX = (tMat.col1.x * r2X + tMat.col2.x * r2Y);
+    r2Y = (tMat.col1.y * r2X + tMat.col2.y * r2Y);
+    r2X = tX;
+    this.m_u.x = bB.m_sweep.c.x + r2X - bA.m_sweep.c.x - r1X;
+    this.m_u.y = bB.m_sweep.c.y + r2Y - bA.m_sweep.c.y - r1Y;
+    var length = Math.sqrt(this.m_u.x * this.m_u.x + this.m_u.y * this.m_u.y);
+    if (length > b2Settings.b2_linearSlop) {
+      this.m_u.Multiply(1 / length);
+    } else {
+      this.m_u.SetZero();
+    }
+    var cr1u = (r1X * this.m_u.y - r1Y * this.m_u.x);
+    var cr2u = (r2X * this.m_u.y - r2Y * this.m_u.x);
+    var invMass = bA.m_invMass + bA.m_invI * cr1u * cr1u + bB.m_invMass + bB.m_invI * cr2u * cr2u;
+    this.m_mass = invMass != 0 ? 1 / invMass : 0;
+    if (this.m_frequencyHz > 0) {
+      var C = length - this.m_length;
+      var omega = 2.0 * Math.PI * this.m_frequencyHz;
+      var d = 2.0 * this.m_mass * this.m_dampingRatio * omega;
+      var k = this.m_mass * omega * omega;
+      this.m_gamma = step.dt * (d + step.dt * k);
+      this.m_gamma = this.m_gamma != 0 ? 1 / this.m_gamma : 0;
+      this.m_bias = C * step.dt * k * this.m_gamma;
+      this.m_mass = invMass + this.m_gamma;
+      this.m_mass = this.m_mass != 0 ? 1 / this.m_mass : 0;
+    }
+    if (step.warmStarting) {
+      this.m_impulse *= step.dtRatio;
+      var PX = this.m_impulse * this.m_u.x;
+      var PY = this.m_impulse * this.m_u.y;
+      bA.m_linearVelocity.x -= bA.m_invMass * PX;
+      bA.m_linearVelocity.y -= bA.m_invMass * PY;
+      bA.m_angularVelocity -= bA.m_invI * (r1X * PY - r1Y * PX);
+      bB.m_linearVelocity.x += bB.m_invMass * PX;
+      bB.m_linearVelocity.y += bB.m_invMass * PY;
+      bB.m_angularVelocity += bB.m_invI * (r2X * PY - r2Y * PX);
+    } else {
+      this.m_impulse = 0;
+    }
+  },
+  SolveVelocityConstraints: function (step) {
+    var tMat;
+    var bA = this.m_bodyA;
+    var bB = this.m_bodyB;
+    tMat = bA.m_xf.R;
+    var r1X = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
+    var r1Y = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
+    var tX = (tMat.col1.x * r1X + tMat.col2.x * r1Y);
+    r1Y = (tMat.col1.y * r1X + tMat.col2.y * r1Y);
+    r1X = tX;
+    tMat = bB.m_xf.R;
+    var r2X = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
+    var r2Y = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
+    tX = (tMat.col1.x * r2X + tMat.col2.x * r2Y);
+    r2Y = (tMat.col1.y * r2X + tMat.col2.y * r2Y);
+    r2X = tX;
+    var v1X = bA.m_linearVelocity.x + ((-bA.m_angularVelocity * r1Y));
+    var v1Y = bA.m_linearVelocity.y + (bA.m_angularVelocity * r1X);
+    var v2X = bB.m_linearVelocity.x + ((-bB.m_angularVelocity * r2Y));
+    var v2Y = bB.m_linearVelocity.y + (bB.m_angularVelocity * r2X);
+    var Cdot = (this.m_u.x * (v2X - v1X) + this.m_u.y * (v2Y - v1Y));
+    var impulse = (-this.m_mass * (Cdot + this.m_bias + this.m_gamma * this.m_impulse));
+    this.m_impulse += impulse;
+    var PX = impulse * this.m_u.x;
+    var PY = impulse * this.m_u.y;
+    bA.m_linearVelocity.x -= bA.m_invMass * PX;
+    bA.m_linearVelocity.y -= bA.m_invMass * PY;
+    bA.m_angularVelocity -= bA.m_invI * (r1X * PY - r1Y * PX);
+    bB.m_linearVelocity.x += bB.m_invMass * PX;
+    bB.m_linearVelocity.y += bB.m_invMass * PY;
+    bB.m_angularVelocity += bB.m_invI * (r2X * PY - r2Y * PX);
+  },
+  SolvePositionConstraints: function (baumgarte) {
+    if (baumgarte === undefined) baumgarte = 0;
+    var tMat;
+    if (this.m_frequencyHz > 0) {
+      return true;
+    }
+    var bA = this.m_bodyA;
+    var bB = this.m_bodyB;
+    tMat = bA.m_xf.R;
+    var r1X = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
+    var r1Y = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
+    var tX = (tMat.col1.x * r1X + tMat.col2.x * r1Y);
+    r1Y = (tMat.col1.y * r1X + tMat.col2.y * r1Y);
+    r1X = tX;
+    tMat = bB.m_xf.R;
+    var r2X = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
+    var r2Y = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
+    tX = (tMat.col1.x * r2X + tMat.col2.x * r2Y);
+    r2Y = (tMat.col1.y * r2X + tMat.col2.y * r2Y);
+    r2X = tX;
+    var dX = bB.m_sweep.c.x + r2X - bA.m_sweep.c.x - r1X;
+    var dY = bB.m_sweep.c.y + r2Y - bA.m_sweep.c.y - r1Y;
+    var length = Math.sqrt(dX * dX + dY * dY);
+    dX /= length;
+    dY /= length;
+    var C = length - this.m_length;
+    C = b2Math.Clamp(C, (-b2Settings.b2_maxLinearCorrection), b2Settings.b2_maxLinearCorrection);
+    var impulse = (-this.m_mass * C);
+    this.m_u.Set(dX, dY);
+    var PX = impulse * this.m_u.x;
+    var PY = impulse * this.m_u.y;
+    bA.m_sweep.c.x -= bA.m_invMass * PX;
+    bA.m_sweep.c.y -= bA.m_invMass * PY;
+    bA.m_sweep.a -= bA.m_invI * (r1X * PY - r1Y * PX);
+    bB.m_sweep.c.x += bB.m_invMass * PX;
+    bB.m_sweep.c.y += bB.m_invMass * PY;
+    bB.m_sweep.a += bB.m_invI * (r2X * PY - r2Y * PX);
+    bA.SynchronizeTransform();
+    bB.SynchronizeTransform();
+    return Math.abs(C) < b2Settings.b2_linearSlop;
+  },
+});
 
-// TODO(slightlyoff): inherit_()
-function b2FrictionJointDef() {
-   b2FrictionJointDef.b2FrictionJointDef.apply(this, arguments);
-   if (this.constructor === b2FrictionJointDef) this.b2FrictionJointDef.apply(this, arguments);
-};
-Box2D.Dynamics.Joints.b2FrictionJointDef = b2FrictionJointDef;
+var b2DistanceJointDef =
+Box2D.Dynamics.Joints.b2DistanceJointDef = Box2D.inherit_({
+  extends: b2JointDef,
+  initialize: function() {
+    b2JointDef.apply(this, arguments);
+    this.localAnchorA = new b2Vec2();
+    this.localAnchorB = new b2Vec2();
+    this.type = b2Joint.e_distanceJoint;
+    this.length = 1;
+    this.frequencyHz = 0;
+    this.dampingRatio = 0;
+  },
+  Initialize: function (bA, bB, anchorA, anchorB) {
+    this.bodyA = bA;
+    this.bodyB = bB;
+    this.localAnchorA.SetV(this.bodyA.GetLocalPoint(anchorA));
+    this.localAnchorB.SetV(this.bodyB.GetLocalPoint(anchorB));
+    var dX = anchorB.x - anchorA.x;
+    var dY = anchorB.y - anchorA.y;
+    this.length = Math.sqrt(dX * dX + dY * dY);
+    this.frequencyHz = 0;
+    this.dampingRatio = 0;
+  },
+});
 
-// TODO(slightlyoff): inherit_()
-function b2GearJoint() {
-   b2GearJoint.b2GearJoint.apply(this, arguments);
-   if (this.constructor === b2GearJoint) this.b2GearJoint.apply(this, arguments);
-};
-Box2D.Dynamics.Joints.b2GearJoint = b2GearJoint;
+var b2FrictionJoint =
+Box2D.Dynamics.Joints.b2FrictionJoint = Box2D.inherit_({
+  extends: b2Joint,
+  initialize: function() {
+    b2Joint.apply(this, arguments);
+    this.m_localAnchorA = new b2Vec2();
+    this.m_localAnchorB = new b2Vec2();
+    this.m_linearMass = new b2Mat22();
+    this.m_linearImpulse = new b2Vec2();
+  },
+  GetAnchorA: function() {
+    return this.m_bodyA.GetWorldPoint(this.m_localAnchorA);
+  },
+  GetAnchorB: function() {
+    return this.m_bodyB.GetWorldPoint(this.m_localAnchorB);
+  },
+  GetReactionForce: function(inv_dt) {
+    if (inv_dt === undefined) inv_dt = 0;
+    return new b2Vec2(inv_dt * this.m_linearImpulse.x, inv_dt * this.m_linearImpulse.y);
+  },
+  GetReactionTorque: function(inv_dt) {
+    if (inv_dt === undefined) inv_dt = 0;
+    return inv_dt * this.m_angularImpulse;
+  },
+  SetMaxForce: function(force) {
+    if (force === undefined) force = 0;
+    this.m_maxForce = force;
+  },
+  GetMaxForce: function() {
+    return this.m_maxForce;
+  },
+  SetMaxTorque: function(torque) {
+    if (torque === undefined) torque = 0;
+    this.m_maxTorque = torque;
+  },
+  GetMaxTorque: function() {
+    return this.m_maxTorque;
+  },
+  b2FrictionJoint: function(def) {
+    this.__super.b2Joint.call(this, def);
+    this.m_localAnchorA.SetV(def.localAnchorA);
+    this.m_localAnchorB.SetV(def.localAnchorB);
+    this.m_linearMass.SetZero();
+    this.m_angularMass = 0;
+    this.m_linearImpulse.SetZero();
+    this.m_angularImpulse = 0;
+    this.m_maxForce = def.maxForce;
+    this.m_maxTorque = def.maxTorque;
+  },
+  InitVelocityConstraints: function(step) {
+    var tMat;
+    var tX = 0;
+    var bA = this.m_bodyA;
+    var bB = this.m_bodyB;
+    tMat = bA.m_xf.R;
+    var rAX = this.m_localAnchorA.x - bA.m_sweep.localCenter.x;
+    var rAY = this.m_localAnchorA.y - bA.m_sweep.localCenter.y;
+    tX = (tMat.col1.x * rAX + tMat.col2.x * rAY);
+    rAY = (tMat.col1.y * rAX + tMat.col2.y * rAY);
+    rAX = tX;
+    tMat = bB.m_xf.R;
+    var rBX = this.m_localAnchorB.x - bB.m_sweep.localCenter.x;
+    var rBY = this.m_localAnchorB.y - bB.m_sweep.localCenter.y;
+    tX = (tMat.col1.x * rBX + tMat.col2.x * rBY);
+    rBY = (tMat.col1.y * rBX + tMat.col2.y * rBY);
+    rBX = tX;
+    var mA = bA.m_invMass;
+    var mB = bB.m_invMass;
+    var iA = bA.m_invI;
+    var iB = bB.m_invI;
+    var K = new b2Mat22();
+    K.col1.x = mA + mB;
+    K.col2.x = 0;
+    K.col1.y = 0;
+    K.col2.y = mA + mB;
+    K.col1.x += iA * rAY * rAY;
+    K.col2.x += (-iA * rAX * rAY);
+    K.col1.y += (-iA * rAX * rAY);
+    K.col2.y += iA * rAX * rAX;
+    K.col1.x += iB * rBY * rBY;
+    K.col2.x += (-iB * rBX * rBY);
+    K.col1.y += (-iB * rBX * rBY);
+    K.col2.y += iB * rBX * rBX;
+    K.GetInverse(this.m_linearMass);
+    this.m_angularMass = iA + iB;
+    if (this.m_angularMass > 0) {
+      this.m_angularMass = 1 / this.m_angularMass;
+    }
+    if (step.warmStarting) {
+      this.m_linearImpulse.x *= step.dtRatio;
+      this.m_linearImpulse.y *= step.dtRatio;
+      this.m_angularImpulse *= step.dtRatio;
+      var P = this.m_linearImpulse;
+      bA.m_linearVelocity.x -= mA * P.x;
+      bA.m_linearVelocity.y -= mA * P.y;
+      bA.m_angularVelocity -= iA * (rAX * P.y - rAY * P.x + this.m_angularImpulse);
+      bB.m_linearVelocity.x += mB * P.x;
+      bB.m_linearVelocity.y += mB * P.y;
+      bB.m_angularVelocity += iB * (rBX * P.y - rBY * P.x + this.m_angularImpulse);
+    } else {
+      this.m_linearImpulse.SetZero();
+      this.m_angularImpulse = 0;
+    }
+  },
+  SolveVelocityConstraints: function(step) {
+    var tMat;
+    var tX = 0;
+    var bA = this.m_bodyA;
+    var bB = this.m_bodyB;
+    var vA = bA.m_linearVelocity;
+    var wA = bA.m_angularVelocity;
+    var vB = bB.m_linearVelocity;
+    var wB = bB.m_angularVelocity;
+    var mA = bA.m_invMass;
+    var mB = bB.m_invMass;
+    var iA = bA.m_invI;
+    var iB = bB.m_invI;
+    tMat = bA.m_xf.R;
+    var rAX = this.m_localAnchorA.x - bA.m_sweep.localCenter.x;
+    var rAY = this.m_localAnchorA.y - bA.m_sweep.localCenter.y;
+    tX = (tMat.col1.x * rAX + tMat.col2.x * rAY);
+    rAY = (tMat.col1.y * rAX + tMat.col2.y * rAY);
+    rAX = tX;
+    tMat = bB.m_xf.R;
+    var rBX = this.m_localAnchorB.x - bB.m_sweep.localCenter.x;
+    var rBY = this.m_localAnchorB.y - bB.m_sweep.localCenter.y;
+    tX = (tMat.col1.x * rBX + tMat.col2.x * rBY);
+    rBY = (tMat.col1.y * rBX + tMat.col2.y * rBY);
+    rBX = tX;
+    var maxImpulse = 0; {
+      var Cdot = wB - wA;
+      var impulse = (-this.m_angularMass * Cdot);
+      var oldImpulse = this.m_angularImpulse;
+      maxImpulse = step.dt * this.m_maxTorque;
+      this.m_angularImpulse = b2Math.Clamp(this.m_angularImpulse + impulse, (-maxImpulse), maxImpulse);
+      impulse = this.m_angularImpulse - oldImpulse;
+      wA -= iA * impulse;
+      wB += iB * impulse;
+    } {
+      var CdotX = vB.x - wB * rBY - vA.x + wA * rAY;
+      var CdotY = vB.y + wB * rBX - vA.y - wA * rAX;
+      var impulseV = b2Math.MulMV(this.m_linearMass, new b2Vec2((-CdotX), (-CdotY)));
+      var oldImpulseV = this.m_linearImpulse.Copy();
+      this.m_linearImpulse.Add(impulseV);
+      maxImpulse = step.dt * this.m_maxForce;
+      if (this.m_linearImpulse.LengthSquared() > maxImpulse * maxImpulse) {
+        this.m_linearImpulse.Normalize();
+        this.m_linearImpulse.Multiply(maxImpulse);
+      }
+      impulseV = b2Math.SubtractVV(this.m_linearImpulse, oldImpulseV);
+      vA.x -= mA * impulseV.x;
+      vA.y -= mA * impulseV.y;
+      wA -= iA * (rAX * impulseV.y - rAY * impulseV.x);
+      vB.x += mB * impulseV.x;
+      vB.y += mB * impulseV.y;
+      wB += iB * (rBX * impulseV.y - rBY * impulseV.x);
+    }
+    bA.m_angularVelocity = wA;
+    bB.m_angularVelocity = wB;
+  },
+  SolvePositionConstraints: function(baumgarte) {
+    if (baumgarte === undefined) baumgarte = 0;
+    return true;
+  },
+});
 
-// TODO(slightlyoff): inherit_()
-function b2GearJointDef() {
-   b2GearJointDef.b2GearJointDef.apply(this, arguments);
-   if (this.constructor === b2GearJointDef) this.b2GearJointDef.apply(this, arguments);
+var b2FrictionJointDef =
+Box2D.Dynamics.Joints.b2FrictionJointDef = Box2D.inherit_({
+  extends: b2JointDef,
+  initialize: function() {
+    b2JointDef.apply(this, arguments);
+    this.localAnchorA = new b2Vec2();
+    this.localAnchorB = new b2Vec2();
+    this.type = b2Joint.e_frictionJoint;
+    this.maxForce = 0;
+    this.maxTorque = 0;
+  },
+  Initialize: function (bA, bB, anchor) {
+    this.bodyA = bA;
+    this.bodyB = bB;
+    this.localAnchorA.SetV(this.bodyA.GetLocalPoint(anchor));
+    this.localAnchorB.SetV(this.bodyB.GetLocalPoint(anchor));
+  },
+});
+
+var b2GearJoint =
+Box2D.Dynamics.Joints.b2GearJoint = Box2D.inherit_({
+  extends: b2GearJoint,
+  initialize: function() {
+    b2Joint.apply(this, arguments);
+    this.m_groundAnchor1 = new b2Vec2();
+    this.m_groundAnchor2 = new b2Vec2();
+    this.m_localAnchor1 = new b2Vec2();
+    this.m_localAnchor2 = new b2Vec2();
+    this.m_J = new b2Jacobian();
+  },
+  GetAnchorA: function() {
+    return this.m_bodyA.GetWorldPoint(this.m_localAnchor1);
+  },
+  GetAnchorB: function() {
+    return this.m_bodyB.GetWorldPoint(this.m_localAnchor2);
+  },
+  GetReactionForce: function(inv_dt) {
+    if (inv_dt === undefined) inv_dt = 0;
+    return new b2Vec2(inv_dt * this.m_impulse * this.m_J.linearB.x, inv_dt * this.m_impulse * this.m_J.linearB.y);
+  },
+  GetReactionTorque: function(inv_dt) {
+    if (inv_dt === undefined) inv_dt = 0;
+    var tMat = this.m_bodyB.m_xf.R;
+    var rX = this.m_localAnchor1.x - this.m_bodyB.m_sweep.localCenter.x;
+    var rY = this.m_localAnchor1.y - this.m_bodyB.m_sweep.localCenter.y;
+    var tX = tMat.col1.x * rX + tMat.col2.x * rY;
+    rY = tMat.col1.y * rX + tMat.col2.y * rY;
+    rX = tX;
+    var PX = this.m_impulse * this.m_J.linearB.x;
+    var PY = this.m_impulse * this.m_J.linearB.y;
+    return inv_dt * (this.m_impulse * this.m_J.angularB - rX * PY + rY * PX);
+  },
+  GetRatio: function() {
+    return this.m_ratio;
+  },
+  SetRatio: function(ratio) {
+    if (ratio === undefined) ratio = 0;
+    this.m_ratio = ratio;
+  },
+  b2GearJoint: function(def) {
+    this.__super.b2Joint.call(this, def);
+    var type1 = parseInt(def.joint1.m_type);
+    var type2 = parseInt(def.joint2.m_type);
+    this.m_revolute1 = null;
+    this.m_prismatic1 = null;
+    this.m_revolute2 = null;
+    this.m_prismatic2 = null;
+    var coordinate1 = 0;
+    var coordinate2 = 0;
+    this.m_ground1 = def.joint1.GetBodyA();
+    this.m_bodyA = def.joint1.GetBodyB();
+    if (type1 == b2Joint.e_revoluteJoint) {
+      this.m_revolute1 = (def.joint1 instanceof b2RevoluteJoint ? def.joint1 : null);
+      this.m_groundAnchor1.SetV(this.m_revolute1.m_localAnchor1);
+      this.m_localAnchor1.SetV(this.m_revolute1.m_localAnchor2);
+      coordinate1 = this.m_revolute1.GetJointAngle();
+    } else {
+      this.m_prismatic1 = (def.joint1 instanceof b2PrismaticJoint ? def.joint1 : null);
+      this.m_groundAnchor1.SetV(this.m_prismatic1.m_localAnchor1);
+      this.m_localAnchor1.SetV(this.m_prismatic1.m_localAnchor2);
+      coordinate1 = this.m_prismatic1.GetJointTranslation();
+    }
+    this.m_ground2 = def.joint2.GetBodyA();
+    this.m_bodyB = def.joint2.GetBodyB();
+    if (type2 == b2Joint.e_revoluteJoint) {
+      this.m_revolute2 = (def.joint2 instanceof b2RevoluteJoint ? def.joint2 : null);
+      this.m_groundAnchor2.SetV(this.m_revolute2.m_localAnchor1);
+      this.m_localAnchor2.SetV(this.m_revolute2.m_localAnchor2);
+      coordinate2 = this.m_revolute2.GetJointAngle();
+    } else {
+      this.m_prismatic2 = (def.joint2 instanceof b2PrismaticJoint ? def.joint2 : null);
+      this.m_groundAnchor2.SetV(this.m_prismatic2.m_localAnchor1);
+      this.m_localAnchor2.SetV(this.m_prismatic2.m_localAnchor2);
+      coordinate2 = this.m_prismatic2.GetJointTranslation();
+    }
+    this.m_ratio = def.ratio;
+    this.m_constant = coordinate1 + this.m_ratio * coordinate2;
+    this.m_impulse = 0;
+  },
+  InitVelocityConstraints: function(step) {
+    var g1 = this.m_ground1;
+    var g2 = this.m_ground2;
+    var bA = this.m_bodyA;
+    var bB = this.m_bodyB;
+    var ugX = 0;
+    var ugY = 0;
+    var rX = 0;
+    var rY = 0;
+    var tMat;
+    var tVec;
+    var crug = 0;
+    var tX = 0;
+    var K = 0;
+    this.m_J.SetZero();
+    if (this.m_revolute1) {
+      this.m_J.angularA = (-1);
+      K += bA.m_invI;
+    } else {
+      tMat = g1.m_xf.R;
+      tVec = this.m_prismatic1.m_localXAxis1;
+      ugX = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+      ugY = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+      tMat = bA.m_xf.R;
+      rX = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
+      rY = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
+      tX = tMat.col1.x * rX + tMat.col2.x * rY;
+      rY = tMat.col1.y * rX + tMat.col2.y * rY;
+      rX = tX;
+      crug = rX * ugY - rY * ugX;
+      this.m_J.linearA.Set((-ugX), (-ugY));
+      this.m_J.angularA = (-crug);
+      K += bA.m_invMass + bA.m_invI * crug * crug;
+    }
+    if (this.m_revolute2) {
+      this.m_J.angularB = (-this.m_ratio);
+      K += this.m_ratio * this.m_ratio * bB.m_invI;
+    } else {
+      tMat = g2.m_xf.R;
+      tVec = this.m_prismatic2.m_localXAxis1;
+      ugX = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+      ugY = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+      tMat = bB.m_xf.R;
+      rX = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
+      rY = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
+      tX = tMat.col1.x * rX + tMat.col2.x * rY;
+      rY = tMat.col1.y * rX + tMat.col2.y * rY;
+      rX = tX;
+      crug = rX * ugY - rY * ugX;
+      this.m_J.linearB.Set((-this.m_ratio * ugX), (-this.m_ratio * ugY));
+      this.m_J.angularB = (-this.m_ratio * crug);
+      K += this.m_ratio * this.m_ratio * (bB.m_invMass + bB.m_invI * crug * crug);
+    }
+    this.m_mass = K > 0 ? 1 / K : 0;
+    if (step.warmStarting) {
+      bA.m_linearVelocity.x += bA.m_invMass * this.m_impulse * this.m_J.linearA.x;
+      bA.m_linearVelocity.y += bA.m_invMass * this.m_impulse * this.m_J.linearA.y;
+      bA.m_angularVelocity += bA.m_invI * this.m_impulse * this.m_J.angularA;
+      bB.m_linearVelocity.x += bB.m_invMass * this.m_impulse * this.m_J.linearB.x;
+      bB.m_linearVelocity.y += bB.m_invMass * this.m_impulse * this.m_J.linearB.y;
+      bB.m_angularVelocity += bB.m_invI * this.m_impulse * this.m_J.angularB;
+    } else {
+      this.m_impulse = 0;
+    }
+  },
+  SolveVelocityConstraints: function(step) {
+    var bA = this.m_bodyA;
+    var bB = this.m_bodyB;
+    var Cdot = this.m_J.Compute(bA.m_linearVelocity, bA.m_angularVelocity, bB.m_linearVelocity, bB.m_angularVelocity);
+    var impulse = (-this.m_mass * Cdot);
+    this.m_impulse += impulse;
+    bA.m_linearVelocity.x += bA.m_invMass * impulse * this.m_J.linearA.x;
+    bA.m_linearVelocity.y += bA.m_invMass * impulse * this.m_J.linearA.y;
+    bA.m_angularVelocity += bA.m_invI * impulse * this.m_J.angularA;
+    bB.m_linearVelocity.x += bB.m_invMass * impulse * this.m_J.linearB.x;
+    bB.m_linearVelocity.y += bB.m_invMass * impulse * this.m_J.linearB.y;
+    bB.m_angularVelocity += bB.m_invI * impulse * this.m_J.angularB;
+  },
+  SolvePositionConstraints: function(baumgarte) {
+    if (baumgarte === undefined) baumgarte = 0;
+    var linearError = 0;
+    var bA = this.m_bodyA;
+    var bB = this.m_bodyB;
+    var coordinate1 = 0;
+    var coordinate2 = 0;
+    if (this.m_revolute1) {
+      coordinate1 = this.m_revolute1.GetJointAngle();
+    } else {
+      coordinate1 = this.m_prismatic1.GetJointTranslation();
+    }
+    if (this.m_revolute2) {
+      coordinate2 = this.m_revolute2.GetJointAngle();
+    } else {
+      coordinate2 = this.m_prismatic2.GetJointTranslation();
+    }
+    var C = this.m_constant - (coordinate1 + this.m_ratio * coordinate2);
+    var impulse = (-this.m_mass * C);
+    bA.m_sweep.c.x += bA.m_invMass * impulse * this.m_J.linearA.x;
+    bA.m_sweep.c.y += bA.m_invMass * impulse * this.m_J.linearA.y;
+    bA.m_sweep.a += bA.m_invI * impulse * this.m_J.angularA;
+    bB.m_sweep.c.x += bB.m_invMass * impulse * this.m_J.linearB.x;
+    bB.m_sweep.c.y += bB.m_invMass * impulse * this.m_J.linearB.y;
+    bB.m_sweep.a += bB.m_invI * impulse * this.m_J.angularB;
+    bA.SynchronizeTransform();
+    bB.SynchronizeTransform();
+    return linearError < b2Settings.b2_linearSlop;
+  },
+});
+
+
+var b2GearJointDef =
+Box2D.Dynamics.Joints.b2GearJointDef = Box2D.inherit_({
+  extends: b2JointDef,
+  initialize: function() {
+    b2JointDef.apply(this, arguments);
+    this.type = b2Joint.e_gearJoint;
+    this.joint1 = null;
+    this.joint2 = null;
+    this.ratio = 1;
+  },
+});
+// FIXME(slightlyoff): remove when JointDef types are ported
+b2JointDef.b2JointDef = function () {};
+b2JointDef.prototype.b2JointDef = function () {
+  this.type = b2Joint.e_unknownJoint;
+  this.userData = null;
+  this.bodyA = null;
+  this.bodyB = null;
+  this.collideConnected = false;
 };
-Box2D.Dynamics.Joints.b2GearJointDef = b2GearJointDef;
+
 
 // TODO(slightlyoff): inherit_()
 function b2Jacobian() {
    b2Jacobian.b2Jacobian.apply(this, arguments);
 };
 Box2D.Dynamics.Joints.b2Jacobian = b2Jacobian;
-
-// TODO(slightlyoff): inherit_()
-function b2Joint() {
-   b2Joint.b2Joint.apply(this, arguments);
-   if (this.constructor === b2Joint) this.b2Joint.apply(this, arguments);
-};
-Box2D.Dynamics.Joints.b2Joint = b2Joint;
 
 // TODO(slightlyoff): inherit_()
 function b2JointDef() {
@@ -6946,596 +7572,6 @@ b2DebugDraw.prototype.DrawSegment = function (p1, p2, color) {}
 b2DebugDraw.prototype.DrawTransform = function (xf) {}
 
 
-
-Box2D.inherit(b2DistanceJoint, Box2D.Dynamics.Joints.b2Joint);
-b2DistanceJoint.prototype.__super = Box2D.Dynamics.Joints.b2Joint.prototype;
-b2DistanceJoint.b2DistanceJoint = function () {
-  Box2D.Dynamics.Joints.b2Joint.b2Joint.apply(this, arguments);
-  this.m_localAnchor1 = new b2Vec2();
-  this.m_localAnchor2 = new b2Vec2();
-  this.m_u = new b2Vec2();
-};
-b2DistanceJoint.prototype.GetAnchorA = function () {
-  return this.m_bodyA.GetWorldPoint(this.m_localAnchor1);
-}
-b2DistanceJoint.prototype.GetAnchorB = function () {
-  return this.m_bodyB.GetWorldPoint(this.m_localAnchor2);
-}
-b2DistanceJoint.prototype.GetReactionForce = function (inv_dt) {
-  if (inv_dt === undefined) inv_dt = 0;
-  return new b2Vec2(inv_dt * this.m_impulse * this.m_u.x, inv_dt * this.m_impulse * this.m_u.y);
-}
-b2DistanceJoint.prototype.GetReactionTorque = function (inv_dt) {
-  if (inv_dt === undefined) inv_dt = 0;
-  return 0;
-}
-b2DistanceJoint.prototype.GetLength = function () {
-  return this.m_length;
-}
-b2DistanceJoint.prototype.SetLength = function (length) {
-  if (length === undefined) length = 0;
-  this.m_length = length;
-}
-b2DistanceJoint.prototype.GetFrequency = function () {
-  return this.m_frequencyHz;
-}
-b2DistanceJoint.prototype.SetFrequency = function (hz) {
-  if (hz === undefined) hz = 0;
-  this.m_frequencyHz = hz;
-}
-b2DistanceJoint.prototype.GetDampingRatio = function () {
-  return this.m_dampingRatio;
-}
-b2DistanceJoint.prototype.SetDampingRatio = function (ratio) {
-  if (ratio === undefined) ratio = 0;
-  this.m_dampingRatio = ratio;
-}
-b2DistanceJoint.prototype.b2DistanceJoint = function (def) {
-  this.__super.b2Joint.call(this, def);
-  var tMat;
-  var tX = 0;
-  var tY = 0;
-  this.m_localAnchor1.SetV(def.localAnchorA);
-  this.m_localAnchor2.SetV(def.localAnchorB);
-  this.m_length = def.length;
-  this.m_frequencyHz = def.frequencyHz;
-  this.m_dampingRatio = def.dampingRatio;
-  this.m_impulse = 0;
-  this.m_gamma = 0;
-  this.m_bias = 0;
-}
-b2DistanceJoint.prototype.InitVelocityConstraints = function (step) {
-  var tMat;
-  var tX = 0;
-  var bA = this.m_bodyA;
-  var bB = this.m_bodyB;
-  tMat = bA.m_xf.R;
-  var r1X = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
-  var r1Y = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
-  tX = (tMat.col1.x * r1X + tMat.col2.x * r1Y);
-  r1Y = (tMat.col1.y * r1X + tMat.col2.y * r1Y);
-  r1X = tX;
-  tMat = bB.m_xf.R;
-  var r2X = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
-  var r2Y = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
-  tX = (tMat.col1.x * r2X + tMat.col2.x * r2Y);
-  r2Y = (tMat.col1.y * r2X + tMat.col2.y * r2Y);
-  r2X = tX;
-  this.m_u.x = bB.m_sweep.c.x + r2X - bA.m_sweep.c.x - r1X;
-  this.m_u.y = bB.m_sweep.c.y + r2Y - bA.m_sweep.c.y - r1Y;
-  var length = Math.sqrt(this.m_u.x * this.m_u.x + this.m_u.y * this.m_u.y);
-  if (length > b2Settings.b2_linearSlop) {
-    this.m_u.Multiply(1 / length);
-  } else {
-    this.m_u.SetZero();
-  }
-  var cr1u = (r1X * this.m_u.y - r1Y * this.m_u.x);
-  var cr2u = (r2X * this.m_u.y - r2Y * this.m_u.x);
-  var invMass = bA.m_invMass + bA.m_invI * cr1u * cr1u + bB.m_invMass + bB.m_invI * cr2u * cr2u;
-  this.m_mass = invMass != 0 ? 1 / invMass : 0;
-  if (this.m_frequencyHz > 0) {
-    var C = length - this.m_length;
-    var omega = 2.0 * Math.PI * this.m_frequencyHz;
-    var d = 2.0 * this.m_mass * this.m_dampingRatio * omega;
-    var k = this.m_mass * omega * omega;
-    this.m_gamma = step.dt * (d + step.dt * k);
-    this.m_gamma = this.m_gamma != 0 ? 1 / this.m_gamma : 0;
-    this.m_bias = C * step.dt * k * this.m_gamma;
-    this.m_mass = invMass + this.m_gamma;
-    this.m_mass = this.m_mass != 0 ? 1 / this.m_mass : 0;
-  }
-  if (step.warmStarting) {
-    this.m_impulse *= step.dtRatio;
-    var PX = this.m_impulse * this.m_u.x;
-    var PY = this.m_impulse * this.m_u.y;
-    bA.m_linearVelocity.x -= bA.m_invMass * PX;
-    bA.m_linearVelocity.y -= bA.m_invMass * PY;
-    bA.m_angularVelocity -= bA.m_invI * (r1X * PY - r1Y * PX);
-    bB.m_linearVelocity.x += bB.m_invMass * PX;
-    bB.m_linearVelocity.y += bB.m_invMass * PY;
-    bB.m_angularVelocity += bB.m_invI * (r2X * PY - r2Y * PX);
-  } else {
-    this.m_impulse = 0;
-  }
-}
-b2DistanceJoint.prototype.SolveVelocityConstraints = function (step) {
-  var tMat;
-  var bA = this.m_bodyA;
-  var bB = this.m_bodyB;
-  tMat = bA.m_xf.R;
-  var r1X = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
-  var r1Y = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
-  var tX = (tMat.col1.x * r1X + tMat.col2.x * r1Y);
-  r1Y = (tMat.col1.y * r1X + tMat.col2.y * r1Y);
-  r1X = tX;
-  tMat = bB.m_xf.R;
-  var r2X = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
-  var r2Y = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
-  tX = (tMat.col1.x * r2X + tMat.col2.x * r2Y);
-  r2Y = (tMat.col1.y * r2X + tMat.col2.y * r2Y);
-  r2X = tX;
-  var v1X = bA.m_linearVelocity.x + ((-bA.m_angularVelocity * r1Y));
-  var v1Y = bA.m_linearVelocity.y + (bA.m_angularVelocity * r1X);
-  var v2X = bB.m_linearVelocity.x + ((-bB.m_angularVelocity * r2Y));
-  var v2Y = bB.m_linearVelocity.y + (bB.m_angularVelocity * r2X);
-  var Cdot = (this.m_u.x * (v2X - v1X) + this.m_u.y * (v2Y - v1Y));
-  var impulse = (-this.m_mass * (Cdot + this.m_bias + this.m_gamma * this.m_impulse));
-  this.m_impulse += impulse;
-  var PX = impulse * this.m_u.x;
-  var PY = impulse * this.m_u.y;
-  bA.m_linearVelocity.x -= bA.m_invMass * PX;
-  bA.m_linearVelocity.y -= bA.m_invMass * PY;
-  bA.m_angularVelocity -= bA.m_invI * (r1X * PY - r1Y * PX);
-  bB.m_linearVelocity.x += bB.m_invMass * PX;
-  bB.m_linearVelocity.y += bB.m_invMass * PY;
-  bB.m_angularVelocity += bB.m_invI * (r2X * PY - r2Y * PX);
-}
-b2DistanceJoint.prototype.SolvePositionConstraints = function (baumgarte) {
-  if (baumgarte === undefined) baumgarte = 0;
-  var tMat;
-  if (this.m_frequencyHz > 0) {
-    return true;
-  }
-  var bA = this.m_bodyA;
-  var bB = this.m_bodyB;
-  tMat = bA.m_xf.R;
-  var r1X = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
-  var r1Y = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
-  var tX = (tMat.col1.x * r1X + tMat.col2.x * r1Y);
-  r1Y = (tMat.col1.y * r1X + tMat.col2.y * r1Y);
-  r1X = tX;
-  tMat = bB.m_xf.R;
-  var r2X = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
-  var r2Y = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
-  tX = (tMat.col1.x * r2X + tMat.col2.x * r2Y);
-  r2Y = (tMat.col1.y * r2X + tMat.col2.y * r2Y);
-  r2X = tX;
-  var dX = bB.m_sweep.c.x + r2X - bA.m_sweep.c.x - r1X;
-  var dY = bB.m_sweep.c.y + r2Y - bA.m_sweep.c.y - r1Y;
-  var length = Math.sqrt(dX * dX + dY * dY);
-  dX /= length;
-  dY /= length;
-  var C = length - this.m_length;
-  C = b2Math.Clamp(C, (-b2Settings.b2_maxLinearCorrection), b2Settings.b2_maxLinearCorrection);
-  var impulse = (-this.m_mass * C);
-  this.m_u.Set(dX, dY);
-  var PX = impulse * this.m_u.x;
-  var PY = impulse * this.m_u.y;
-  bA.m_sweep.c.x -= bA.m_invMass * PX;
-  bA.m_sweep.c.y -= bA.m_invMass * PY;
-  bA.m_sweep.a -= bA.m_invI * (r1X * PY - r1Y * PX);
-  bB.m_sweep.c.x += bB.m_invMass * PX;
-  bB.m_sweep.c.y += bB.m_invMass * PY;
-  bB.m_sweep.a += bB.m_invI * (r2X * PY - r2Y * PX);
-  bA.SynchronizeTransform();
-  bB.SynchronizeTransform();
-  return Math.abs(C) < b2Settings.b2_linearSlop;
-}
-Box2D.inherit(b2DistanceJointDef, Box2D.Dynamics.Joints.b2JointDef);
-b2DistanceJointDef.prototype.__super = Box2D.Dynamics.Joints.b2JointDef.prototype;
-b2DistanceJointDef.b2DistanceJointDef = function () {
-  Box2D.Dynamics.Joints.b2JointDef.b2JointDef.apply(this, arguments);
-  this.localAnchorA = new b2Vec2();
-  this.localAnchorB = new b2Vec2();
-};
-b2DistanceJointDef.prototype.b2DistanceJointDef = function () {
-  this.__super.b2JointDef.call(this);
-  this.type = b2Joint.e_distanceJoint;
-  this.length = 1;
-  this.frequencyHz = 0;
-  this.dampingRatio = 0;
-}
-b2DistanceJointDef.prototype.Initialize = function (bA, bB, anchorA, anchorB) {
-  this.bodyA = bA;
-  this.bodyB = bB;
-  this.localAnchorA.SetV(this.bodyA.GetLocalPoint(anchorA));
-  this.localAnchorB.SetV(this.bodyB.GetLocalPoint(anchorB));
-  var dX = anchorB.x - anchorA.x;
-  var dY = anchorB.y - anchorA.y;
-  this.length = Math.sqrt(dX * dX + dY * dY);
-  this.frequencyHz = 0;
-  this.dampingRatio = 0;
-}
-Box2D.inherit(b2FrictionJoint, Box2D.Dynamics.Joints.b2Joint);
-b2FrictionJoint.prototype.__super = Box2D.Dynamics.Joints.b2Joint.prototype;
-b2FrictionJoint.b2FrictionJoint = function () {
-  Box2D.Dynamics.Joints.b2Joint.b2Joint.apply(this, arguments);
-  this.m_localAnchorA = new b2Vec2();
-  this.m_localAnchorB = new b2Vec2();
-  this.m_linearMass = new b2Mat22();
-  this.m_linearImpulse = new b2Vec2();
-};
-b2FrictionJoint.prototype.GetAnchorA = function () {
-  return this.m_bodyA.GetWorldPoint(this.m_localAnchorA);
-}
-b2FrictionJoint.prototype.GetAnchorB = function () {
-  return this.m_bodyB.GetWorldPoint(this.m_localAnchorB);
-}
-b2FrictionJoint.prototype.GetReactionForce = function (inv_dt) {
-  if (inv_dt === undefined) inv_dt = 0;
-  return new b2Vec2(inv_dt * this.m_linearImpulse.x, inv_dt * this.m_linearImpulse.y);
-}
-b2FrictionJoint.prototype.GetReactionTorque = function (inv_dt) {
-  if (inv_dt === undefined) inv_dt = 0;
-  return inv_dt * this.m_angularImpulse;
-}
-b2FrictionJoint.prototype.SetMaxForce = function (force) {
-  if (force === undefined) force = 0;
-  this.m_maxForce = force;
-}
-b2FrictionJoint.prototype.GetMaxForce = function () {
-  return this.m_maxForce;
-}
-b2FrictionJoint.prototype.SetMaxTorque = function (torque) {
-  if (torque === undefined) torque = 0;
-  this.m_maxTorque = torque;
-}
-b2FrictionJoint.prototype.GetMaxTorque = function () {
-  return this.m_maxTorque;
-}
-b2FrictionJoint.prototype.b2FrictionJoint = function (def) {
-  this.__super.b2Joint.call(this, def);
-  this.m_localAnchorA.SetV(def.localAnchorA);
-  this.m_localAnchorB.SetV(def.localAnchorB);
-  this.m_linearMass.SetZero();
-  this.m_angularMass = 0;
-  this.m_linearImpulse.SetZero();
-  this.m_angularImpulse = 0;
-  this.m_maxForce = def.maxForce;
-  this.m_maxTorque = def.maxTorque;
-}
-b2FrictionJoint.prototype.InitVelocityConstraints = function (step) {
-  var tMat;
-  var tX = 0;
-  var bA = this.m_bodyA;
-  var bB = this.m_bodyB;
-  tMat = bA.m_xf.R;
-  var rAX = this.m_localAnchorA.x - bA.m_sweep.localCenter.x;
-  var rAY = this.m_localAnchorA.y - bA.m_sweep.localCenter.y;
-  tX = (tMat.col1.x * rAX + tMat.col2.x * rAY);
-  rAY = (tMat.col1.y * rAX + tMat.col2.y * rAY);
-  rAX = tX;
-  tMat = bB.m_xf.R;
-  var rBX = this.m_localAnchorB.x - bB.m_sweep.localCenter.x;
-  var rBY = this.m_localAnchorB.y - bB.m_sweep.localCenter.y;
-  tX = (tMat.col1.x * rBX + tMat.col2.x * rBY);
-  rBY = (tMat.col1.y * rBX + tMat.col2.y * rBY);
-  rBX = tX;
-  var mA = bA.m_invMass;
-  var mB = bB.m_invMass;
-  var iA = bA.m_invI;
-  var iB = bB.m_invI;
-  var K = new b2Mat22();
-  K.col1.x = mA + mB;
-  K.col2.x = 0;
-  K.col1.y = 0;
-  K.col2.y = mA + mB;
-  K.col1.x += iA * rAY * rAY;
-  K.col2.x += (-iA * rAX * rAY);
-  K.col1.y += (-iA * rAX * rAY);
-  K.col2.y += iA * rAX * rAX;
-  K.col1.x += iB * rBY * rBY;
-  K.col2.x += (-iB * rBX * rBY);
-  K.col1.y += (-iB * rBX * rBY);
-  K.col2.y += iB * rBX * rBX;
-  K.GetInverse(this.m_linearMass);
-  this.m_angularMass = iA + iB;
-  if (this.m_angularMass > 0) {
-    this.m_angularMass = 1 / this.m_angularMass;
-  }
-  if (step.warmStarting) {
-    this.m_linearImpulse.x *= step.dtRatio;
-    this.m_linearImpulse.y *= step.dtRatio;
-    this.m_angularImpulse *= step.dtRatio;
-    var P = this.m_linearImpulse;
-    bA.m_linearVelocity.x -= mA * P.x;
-    bA.m_linearVelocity.y -= mA * P.y;
-    bA.m_angularVelocity -= iA * (rAX * P.y - rAY * P.x + this.m_angularImpulse);
-    bB.m_linearVelocity.x += mB * P.x;
-    bB.m_linearVelocity.y += mB * P.y;
-    bB.m_angularVelocity += iB * (rBX * P.y - rBY * P.x + this.m_angularImpulse);
-  } else {
-    this.m_linearImpulse.SetZero();
-    this.m_angularImpulse = 0;
-  }
-}
-b2FrictionJoint.prototype.SolveVelocityConstraints = function (step) {
-  var tMat;
-  var tX = 0;
-  var bA = this.m_bodyA;
-  var bB = this.m_bodyB;
-  var vA = bA.m_linearVelocity;
-  var wA = bA.m_angularVelocity;
-  var vB = bB.m_linearVelocity;
-  var wB = bB.m_angularVelocity;
-  var mA = bA.m_invMass;
-  var mB = bB.m_invMass;
-  var iA = bA.m_invI;
-  var iB = bB.m_invI;
-  tMat = bA.m_xf.R;
-  var rAX = this.m_localAnchorA.x - bA.m_sweep.localCenter.x;
-  var rAY = this.m_localAnchorA.y - bA.m_sweep.localCenter.y;
-  tX = (tMat.col1.x * rAX + tMat.col2.x * rAY);
-  rAY = (tMat.col1.y * rAX + tMat.col2.y * rAY);
-  rAX = tX;
-  tMat = bB.m_xf.R;
-  var rBX = this.m_localAnchorB.x - bB.m_sweep.localCenter.x;
-  var rBY = this.m_localAnchorB.y - bB.m_sweep.localCenter.y;
-  tX = (tMat.col1.x * rBX + tMat.col2.x * rBY);
-  rBY = (tMat.col1.y * rBX + tMat.col2.y * rBY);
-  rBX = tX;
-  var maxImpulse = 0; {
-    var Cdot = wB - wA;
-    var impulse = (-this.m_angularMass * Cdot);
-    var oldImpulse = this.m_angularImpulse;
-    maxImpulse = step.dt * this.m_maxTorque;
-    this.m_angularImpulse = b2Math.Clamp(this.m_angularImpulse + impulse, (-maxImpulse), maxImpulse);
-    impulse = this.m_angularImpulse - oldImpulse;
-    wA -= iA * impulse;
-    wB += iB * impulse;
-  } {
-    var CdotX = vB.x - wB * rBY - vA.x + wA * rAY;
-    var CdotY = vB.y + wB * rBX - vA.y - wA * rAX;
-    var impulseV = b2Math.MulMV(this.m_linearMass, new b2Vec2((-CdotX), (-CdotY)));
-    var oldImpulseV = this.m_linearImpulse.Copy();
-    this.m_linearImpulse.Add(impulseV);
-    maxImpulse = step.dt * this.m_maxForce;
-    if (this.m_linearImpulse.LengthSquared() > maxImpulse * maxImpulse) {
-      this.m_linearImpulse.Normalize();
-      this.m_linearImpulse.Multiply(maxImpulse);
-    }
-    impulseV = b2Math.SubtractVV(this.m_linearImpulse, oldImpulseV);
-    vA.x -= mA * impulseV.x;
-    vA.y -= mA * impulseV.y;
-    wA -= iA * (rAX * impulseV.y - rAY * impulseV.x);
-    vB.x += mB * impulseV.x;
-    vB.y += mB * impulseV.y;
-    wB += iB * (rBX * impulseV.y - rBY * impulseV.x);
-  }
-  bA.m_angularVelocity = wA;
-  bB.m_angularVelocity = wB;
-}
-b2FrictionJoint.prototype.SolvePositionConstraints = function (baumgarte) {
-  if (baumgarte === undefined) baumgarte = 0;
-  return true;
-}
-Box2D.inherit(b2FrictionJointDef, Box2D.Dynamics.Joints.b2JointDef);
-b2FrictionJointDef.prototype.__super = Box2D.Dynamics.Joints.b2JointDef.prototype;
-b2FrictionJointDef.b2FrictionJointDef = function () {
-  Box2D.Dynamics.Joints.b2JointDef.b2JointDef.apply(this, arguments);
-  this.localAnchorA = new b2Vec2();
-  this.localAnchorB = new b2Vec2();
-};
-b2FrictionJointDef.prototype.b2FrictionJointDef = function () {
-  this.__super.b2JointDef.call(this);
-  this.type = b2Joint.e_frictionJoint;
-  this.maxForce = 0;
-  this.maxTorque = 0;
-}
-b2FrictionJointDef.prototype.Initialize = function (bA, bB, anchor) {
-  this.bodyA = bA;
-  this.bodyB = bB;
-  this.localAnchorA.SetV(this.bodyA.GetLocalPoint(anchor));
-  this.localAnchorB.SetV(this.bodyB.GetLocalPoint(anchor));
-}
-Box2D.inherit(b2GearJoint, Box2D.Dynamics.Joints.b2Joint);
-b2GearJoint.prototype.__super = Box2D.Dynamics.Joints.b2Joint.prototype;
-b2GearJoint.b2GearJoint = function () {
-  Box2D.Dynamics.Joints.b2Joint.b2Joint.apply(this, arguments);
-  this.m_groundAnchor1 = new b2Vec2();
-  this.m_groundAnchor2 = new b2Vec2();
-  this.m_localAnchor1 = new b2Vec2();
-  this.m_localAnchor2 = new b2Vec2();
-  this.m_J = new b2Jacobian();
-};
-b2GearJoint.prototype.GetAnchorA = function () {
-  return this.m_bodyA.GetWorldPoint(this.m_localAnchor1);
-}
-b2GearJoint.prototype.GetAnchorB = function () {
-  return this.m_bodyB.GetWorldPoint(this.m_localAnchor2);
-}
-b2GearJoint.prototype.GetReactionForce = function (inv_dt) {
-  if (inv_dt === undefined) inv_dt = 0;
-  return new b2Vec2(inv_dt * this.m_impulse * this.m_J.linearB.x, inv_dt * this.m_impulse * this.m_J.linearB.y);
-}
-b2GearJoint.prototype.GetReactionTorque = function (inv_dt) {
-  if (inv_dt === undefined) inv_dt = 0;
-  var tMat = this.m_bodyB.m_xf.R;
-  var rX = this.m_localAnchor1.x - this.m_bodyB.m_sweep.localCenter.x;
-  var rY = this.m_localAnchor1.y - this.m_bodyB.m_sweep.localCenter.y;
-  var tX = tMat.col1.x * rX + tMat.col2.x * rY;
-  rY = tMat.col1.y * rX + tMat.col2.y * rY;
-  rX = tX;
-  var PX = this.m_impulse * this.m_J.linearB.x;
-  var PY = this.m_impulse * this.m_J.linearB.y;
-  return inv_dt * (this.m_impulse * this.m_J.angularB - rX * PY + rY * PX);
-}
-b2GearJoint.prototype.GetRatio = function () {
-  return this.m_ratio;
-}
-b2GearJoint.prototype.SetRatio = function (ratio) {
-  if (ratio === undefined) ratio = 0;
-  this.m_ratio = ratio;
-}
-b2GearJoint.prototype.b2GearJoint = function (def) {
-  this.__super.b2Joint.call(this, def);
-  var type1 = parseInt(def.joint1.m_type);
-  var type2 = parseInt(def.joint2.m_type);
-  this.m_revolute1 = null;
-  this.m_prismatic1 = null;
-  this.m_revolute2 = null;
-  this.m_prismatic2 = null;
-  var coordinate1 = 0;
-  var coordinate2 = 0;
-  this.m_ground1 = def.joint1.GetBodyA();
-  this.m_bodyA = def.joint1.GetBodyB();
-  if (type1 == b2Joint.e_revoluteJoint) {
-    this.m_revolute1 = (def.joint1 instanceof b2RevoluteJoint ? def.joint1 : null);
-    this.m_groundAnchor1.SetV(this.m_revolute1.m_localAnchor1);
-    this.m_localAnchor1.SetV(this.m_revolute1.m_localAnchor2);
-    coordinate1 = this.m_revolute1.GetJointAngle();
-  } else {
-    this.m_prismatic1 = (def.joint1 instanceof b2PrismaticJoint ? def.joint1 : null);
-    this.m_groundAnchor1.SetV(this.m_prismatic1.m_localAnchor1);
-    this.m_localAnchor1.SetV(this.m_prismatic1.m_localAnchor2);
-    coordinate1 = this.m_prismatic1.GetJointTranslation();
-  }
-  this.m_ground2 = def.joint2.GetBodyA();
-  this.m_bodyB = def.joint2.GetBodyB();
-  if (type2 == b2Joint.e_revoluteJoint) {
-    this.m_revolute2 = (def.joint2 instanceof b2RevoluteJoint ? def.joint2 : null);
-    this.m_groundAnchor2.SetV(this.m_revolute2.m_localAnchor1);
-    this.m_localAnchor2.SetV(this.m_revolute2.m_localAnchor2);
-    coordinate2 = this.m_revolute2.GetJointAngle();
-  } else {
-    this.m_prismatic2 = (def.joint2 instanceof b2PrismaticJoint ? def.joint2 : null);
-    this.m_groundAnchor2.SetV(this.m_prismatic2.m_localAnchor1);
-    this.m_localAnchor2.SetV(this.m_prismatic2.m_localAnchor2);
-    coordinate2 = this.m_prismatic2.GetJointTranslation();
-  }
-  this.m_ratio = def.ratio;
-  this.m_constant = coordinate1 + this.m_ratio * coordinate2;
-  this.m_impulse = 0;
-}
-b2GearJoint.prototype.InitVelocityConstraints = function (step) {
-  var g1 = this.m_ground1;
-  var g2 = this.m_ground2;
-  var bA = this.m_bodyA;
-  var bB = this.m_bodyB;
-  var ugX = 0;
-  var ugY = 0;
-  var rX = 0;
-  var rY = 0;
-  var tMat;
-  var tVec;
-  var crug = 0;
-  var tX = 0;
-  var K = 0;
-  this.m_J.SetZero();
-  if (this.m_revolute1) {
-    this.m_J.angularA = (-1);
-    K += bA.m_invI;
-  } else {
-    tMat = g1.m_xf.R;
-    tVec = this.m_prismatic1.m_localXAxis1;
-    ugX = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-    ugY = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-    tMat = bA.m_xf.R;
-    rX = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
-    rY = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
-    tX = tMat.col1.x * rX + tMat.col2.x * rY;
-    rY = tMat.col1.y * rX + tMat.col2.y * rY;
-    rX = tX;
-    crug = rX * ugY - rY * ugX;
-    this.m_J.linearA.Set((-ugX), (-ugY));
-    this.m_J.angularA = (-crug);
-    K += bA.m_invMass + bA.m_invI * crug * crug;
-  }
-  if (this.m_revolute2) {
-    this.m_J.angularB = (-this.m_ratio);
-    K += this.m_ratio * this.m_ratio * bB.m_invI;
-  } else {
-    tMat = g2.m_xf.R;
-    tVec = this.m_prismatic2.m_localXAxis1;
-    ugX = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-    ugY = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-    tMat = bB.m_xf.R;
-    rX = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
-    rY = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
-    tX = tMat.col1.x * rX + tMat.col2.x * rY;
-    rY = tMat.col1.y * rX + tMat.col2.y * rY;
-    rX = tX;
-    crug = rX * ugY - rY * ugX;
-    this.m_J.linearB.Set((-this.m_ratio * ugX), (-this.m_ratio * ugY));
-    this.m_J.angularB = (-this.m_ratio * crug);
-    K += this.m_ratio * this.m_ratio * (bB.m_invMass + bB.m_invI * crug * crug);
-  }
-  this.m_mass = K > 0 ? 1 / K : 0;
-  if (step.warmStarting) {
-    bA.m_linearVelocity.x += bA.m_invMass * this.m_impulse * this.m_J.linearA.x;
-    bA.m_linearVelocity.y += bA.m_invMass * this.m_impulse * this.m_J.linearA.y;
-    bA.m_angularVelocity += bA.m_invI * this.m_impulse * this.m_J.angularA;
-    bB.m_linearVelocity.x += bB.m_invMass * this.m_impulse * this.m_J.linearB.x;
-    bB.m_linearVelocity.y += bB.m_invMass * this.m_impulse * this.m_J.linearB.y;
-    bB.m_angularVelocity += bB.m_invI * this.m_impulse * this.m_J.angularB;
-  } else {
-    this.m_impulse = 0;
-  }
-}
-b2GearJoint.prototype.SolveVelocityConstraints = function (step) {
-  var bA = this.m_bodyA;
-  var bB = this.m_bodyB;
-  var Cdot = this.m_J.Compute(bA.m_linearVelocity, bA.m_angularVelocity, bB.m_linearVelocity, bB.m_angularVelocity);
-  var impulse = (-this.m_mass * Cdot);
-  this.m_impulse += impulse;
-  bA.m_linearVelocity.x += bA.m_invMass * impulse * this.m_J.linearA.x;
-  bA.m_linearVelocity.y += bA.m_invMass * impulse * this.m_J.linearA.y;
-  bA.m_angularVelocity += bA.m_invI * impulse * this.m_J.angularA;
-  bB.m_linearVelocity.x += bB.m_invMass * impulse * this.m_J.linearB.x;
-  bB.m_linearVelocity.y += bB.m_invMass * impulse * this.m_J.linearB.y;
-  bB.m_angularVelocity += bB.m_invI * impulse * this.m_J.angularB;
-}
-b2GearJoint.prototype.SolvePositionConstraints = function (baumgarte) {
-  if (baumgarte === undefined) baumgarte = 0;
-  var linearError = 0;
-  var bA = this.m_bodyA;
-  var bB = this.m_bodyB;
-  var coordinate1 = 0;
-  var coordinate2 = 0;
-  if (this.m_revolute1) {
-    coordinate1 = this.m_revolute1.GetJointAngle();
-  } else {
-    coordinate1 = this.m_prismatic1.GetJointTranslation();
-  }
-  if (this.m_revolute2) {
-    coordinate2 = this.m_revolute2.GetJointAngle();
-  } else {
-    coordinate2 = this.m_prismatic2.GetJointTranslation();
-  }
-  var C = this.m_constant - (coordinate1 + this.m_ratio * coordinate2);
-  var impulse = (-this.m_mass * C);
-  bA.m_sweep.c.x += bA.m_invMass * impulse * this.m_J.linearA.x;
-  bA.m_sweep.c.y += bA.m_invMass * impulse * this.m_J.linearA.y;
-  bA.m_sweep.a += bA.m_invI * impulse * this.m_J.angularA;
-  bB.m_sweep.c.x += bB.m_invMass * impulse * this.m_J.linearB.x;
-  bB.m_sweep.c.y += bB.m_invMass * impulse * this.m_J.linearB.y;
-  bB.m_sweep.a += bB.m_invI * impulse * this.m_J.angularB;
-  bA.SynchronizeTransform();
-  bB.SynchronizeTransform();
-  return linearError < b2Settings.b2_linearSlop;
-}
-Box2D.inherit(b2GearJointDef, Box2D.Dynamics.Joints.b2JointDef);
-b2GearJointDef.prototype.__super = Box2D.Dynamics.Joints.b2JointDef.prototype;
-b2GearJointDef.b2GearJointDef = function () {
-  Box2D.Dynamics.Joints.b2JointDef.b2JointDef.apply(this, arguments);
-};
-b2GearJointDef.prototype.b2GearJointDef = function () {
-  this.__super.b2JointDef.call(this);
-  this.type = b2Joint.e_gearJoint;
-  this.joint1 = null;
-  this.joint2 = null;
-  this.ratio = 1;
-}
 b2Jacobian.b2Jacobian = function () {
   this.linearA = new b2Vec2();
   this.linearB = new b2Vec2();
@@ -7559,124 +7595,11 @@ b2Jacobian.prototype.Compute = function (x1, a1, x2, a2) {
   if (a2 === undefined) a2 = 0;
   return (this.linearA.x * x1.x + this.linearA.y * x1.y) + this.angularA * a1 + (this.linearB.x * x2.x + this.linearB.y * x2.y) + this.angularB * a2;
 }
-b2Joint.b2Joint = function () {
-  this.m_edgeA = new b2JointEdge();
-  this.m_edgeB = new b2JointEdge();
-  this.m_localCenterA = new b2Vec2();
-  this.m_localCenterB = new b2Vec2();
-};
-b2Joint.prototype.GetType = function () {
-  return this.m_type;
-}
-b2Joint.prototype.GetAnchorA = function () {
-  return null;
-}
-b2Joint.prototype.GetAnchorB = function () {
-  return null;
-}
-b2Joint.prototype.GetReactionForce = function (inv_dt) {
-  if (inv_dt === undefined) inv_dt = 0;
-  return null;
-}
-b2Joint.prototype.GetReactionTorque = function (inv_dt) {
-  if (inv_dt === undefined) inv_dt = 0;
-  return 0;
-}
-b2Joint.prototype.GetBodyA = function () {
-  return this.m_bodyA;
-}
-b2Joint.prototype.GetBodyB = function () {
-  return this.m_bodyB;
-}
-b2Joint.prototype.GetNext = function () {
-  return this.m_next;
-}
-b2Joint.prototype.SetUserData = function (data) {
-  this.userData = data;
-}
-b2Joint.prototype.IsActive = function () {
-  return this.m_bodyA.IsActive() && this.m_bodyB.IsActive();
-}
-b2Joint.Create = function (def, allocator) {
-  var joint = null;
-  switch (def.type) {
-  case b2Joint.e_distanceJoint:
-    {
-      joint = new b2DistanceJoint((def instanceof b2DistanceJointDef ? def : null));
-    }
-    break;
-  case b2Joint.e_mouseJoint:
-    {
-      joint = new b2MouseJoint((def instanceof b2MouseJointDef ? def : null));
-    }
-    break;
-  case b2Joint.e_prismaticJoint:
-    {
-      joint = new b2PrismaticJoint((def instanceof b2PrismaticJointDef ? def : null));
-    }
-    break;
-  case b2Joint.e_revoluteJoint:
-    {
-      joint = new b2RevoluteJoint((def instanceof b2RevoluteJointDef ? def : null));
-    }
-    break;
-  case b2Joint.e_pulleyJoint:
-    {
-      joint = new b2PulleyJoint((def instanceof b2PulleyJointDef ? def : null));
-    }
-    break;
-  case b2Joint.e_gearJoint:
-    {
-      joint = new b2GearJoint((def instanceof b2GearJointDef ? def : null));
-    }
-    break;
-  case b2Joint.e_lineJoint:
-    {
-      joint = new b2LineJoint((def instanceof b2LineJointDef ? def : null));
-    }
-    break;
-  case b2Joint.e_weldJoint:
-    {
-      joint = new b2WeldJoint((def instanceof b2WeldJointDef ? def : null));
-    }
-    break;
-  case b2Joint.e_frictionJoint:
-    {
-      joint = new b2FrictionJoint((def instanceof b2FrictionJointDef ? def : null));
-    }
-    break;
-  default:
-    break;
-  }
-  return joint;
-}
-b2Joint.Destroy = function (joint, allocator) {}
-b2Joint.prototype.b2Joint = function (def) {
-  b2Settings.b2Assert(def.bodyA != def.bodyB);
-  this.m_type = def.type;
-  this.m_prev = null;
-  this.m_next = null;
-  this.m_bodyA = def.bodyA;
-  this.m_bodyB = def.bodyB;
-  this.m_collideConnected = def.collideConnected;
-  this.m_islandFlag = false;
-  this.userData = def.userData;
-}
-b2Joint.prototype.InitVelocityConstraints = function (step) {}
-b2Joint.prototype.SolveVelocityConstraints = function (step) {}
-b2Joint.prototype.FinalizeVelocityConstraints = function () {}
-b2Joint.prototype.SolvePositionConstraints = function (baumgarte) {
-  if (baumgarte === undefined) baumgarte = 0;
-  return false;
-}
-b2JointDef.b2JointDef = function () {};
-b2JointDef.prototype.b2JointDef = function () {
-  this.type = b2Joint.e_unknownJoint;
-  this.userData = null;
-  this.bodyA = null;
-  this.bodyB = null;
-  this.collideConnected = false;
-}
+
+
+
+
+
 b2JointEdge.b2JointEdge = function () {};
 Box2D.inherit(b2LineJoint, Box2D.Dynamics.Joints.b2Joint);
 b2LineJoint.prototype.__super = Box2D.Dynamics.Joints.b2Joint.prototype;
