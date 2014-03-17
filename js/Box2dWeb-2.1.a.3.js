@@ -18,9 +18,6 @@
 */
 
 
-// TODO(slightlyoff):
-//    - remove excessive use of parseInt()
-
 var scope = this;
 function emptyFn() {};
 var Box2D = {
