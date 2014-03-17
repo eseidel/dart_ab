@@ -8556,7 +8556,7 @@ b2LineJointDef.prototype.b2LineJointDef = function () {
 var b2MouseJoint =
 Box2D.Dynamics.Joints.b2MouseJoint = Box2D.inherit_({
   extends: b2Joint,
-  initialize: function() {
+  initialize: function(def) {
     b2Joint.apply(this, arguments);
     this.K = new b2Mat22();
     this.K1 = new b2Mat22();
@@ -8566,6 +8566,19 @@ Box2D.Dynamics.Joints.b2MouseJoint = Box2D.inherit_({
     this.m_impulse = new b2Vec2();
     this.m_mass = new b2Mat22();
     this.m_C = new b2Vec2();
+
+    this.m_target.SetV(def.target);
+    var tX = this.m_target.x - this.m_bodyB.m_xf.position.x;
+    var tY = this.m_target.y - this.m_bodyB.m_xf.position.y;
+    var tMat = this.m_bodyB.m_xf.R;
+    this.m_localAnchor.x = (tX * tMat.col1.x + tY * tMat.col1.y);
+    this.m_localAnchor.y = (tX * tMat.col2.x + tY * tMat.col2.y);
+    this.m_maxForce = def.maxForce;
+    this.m_impulse.SetZero();
+    this.m_frequencyHz = def.frequencyHz;
+    this.m_dampingRatio = def.dampingRatio;
+    this.m_beta = 0;
+    this.m_gamma = 0;
   },
   GetAnchorA: function() {
     return this.m_target;
@@ -8611,21 +8624,12 @@ Box2D.Dynamics.Joints.b2MouseJoint = Box2D.inherit_({
     if (ratio === undefined) ratio = 0;
     this.m_dampingRatio = ratio;
   },
+  /*
   b2MouseJoint: function(def) {
     this.__super.b2Joint.call(this, def);
-    this.m_target.SetV(def.target);
-    var tX = this.m_target.x - this.m_bodyB.m_xf.position.x;
-    var tY = this.m_target.y - this.m_bodyB.m_xf.position.y;
-    var tMat = this.m_bodyB.m_xf.R;
-    this.m_localAnchor.x = (tX * tMat.col1.x + tY * tMat.col1.y);
-    this.m_localAnchor.y = (tX * tMat.col2.x + tY * tMat.col2.y);
-    this.m_maxForce = def.maxForce;
-    this.m_impulse.SetZero();
-    this.m_frequencyHz = def.frequencyHz;
-    this.m_dampingRatio = def.dampingRatio;
-    this.m_beta = 0;
-    this.m_gamma = 0;
+
   },
+  */
   InitVelocityConstraints: function(step) {
     var b = this.m_bodyB;
     var mass = b.GetMass();
@@ -8701,19 +8705,6 @@ Box2D.Dynamics.Joints.b2MouseJoint = Box2D.inherit_({
   },
 
 });
-/*
-b2MouseJoint.b2MouseJoint = function () {
-  Box2D.Dynamics.Joints.b2Joint.b2Joint.apply(this, arguments);
-  this.K = new b2Mat22();
-  this.K1 = new b2Mat22();
-  this.K2 = new b2Mat22();
-  this.m_localAnchor = new b2Vec2();
-  this.m_target = new b2Vec2();
-  this.m_impulse = new b2Vec2();
-  this.m_mass = new b2Mat22();
-  this.m_C = new b2Vec2();
-};
-*/
 
 var b2MouseJointDef =
 Box2D.Dynamics.Joints.b2MouseJointDef = Box2D.inherit_({
