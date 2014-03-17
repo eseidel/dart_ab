@@ -76,9 +76,6 @@
          debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
          world.SetDebugDraw(debugDraw);
 
-         // FIXME(slightlyoff): move to rAF
-         window.setInterval(update, 1000 / 60);
-
          //mouse
 
          var mouseX, mouseY, mousePVec, isMouseDown, selectedBody, mouseJoint;
@@ -127,6 +124,7 @@
          //update
 
          function update() {
+            window.requestAnimationFrame(update);
 
             if(isMouseDown && (!mouseJoint)) {
                var body = getBodyAtMouse();
@@ -155,6 +153,7 @@
             world.DrawDebugData();
             world.ClearForces();
          };
+         update();
 
          //helpers
 

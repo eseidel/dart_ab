@@ -8700,10 +8700,8 @@ Box2D.Dynamics.Joints.b2MouseJoint = Box2D.inherit_({
     b.m_angularVelocity += b.m_invI * (rX * impulseY - rY * impulseX);
   },
   SolvePositionConstraints: function(baumgarte) {
-    if (baumgarte === undefined) baumgarte = 0;
     return true;
   },
-
 });
 
 var b2MouseJointDef =
