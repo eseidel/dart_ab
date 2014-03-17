@@ -41,7 +41,6 @@ var Box2D = {
     Box2D.extend(rp, props);
     return realCtor;
   },
-
   own: function(obj, cb, context) {
     Object.getOwnPropertyNames(obj).forEach(cb, context||scope);
     return obj;
@@ -73,10 +72,6 @@ var Box2D = {
   Common: { Math: {} },
   Dynamics: { Contacts: {}, Controllers: {}, Joints: {} },
 };
-
-//#TODO remove assignments from global namespace
-var Vector = Array;
-var NVector = Array;
 
 var b2Math =
 Box2D.Common.Math.b2Math = {
@@ -500,8 +495,8 @@ Box2D.Collision.b2Bound = Box2D.inherit({
 var b2BoundValues =
 Box2D.Collision.b2BoundValues = Box2D.inherit({
    intitialize: function() {
-      this.lowerValues = new NVector(2);
-      this.upperValues = new NVector(2);
+      this.lowerValues = new Array(2);
+      this.upperValues = new Array(2);
    }
 });
 
@@ -2105,8 +2100,8 @@ Box2D.Collision.b2Simplex = Box2D.inherit({
 var b2SimplexCache =
 Box2D.Collision.b2SimplexCache = Box2D.inherit({
   initialize: function() {
-    this.indexA = new NVector(3);
-    this.indexB = new NVector(3);
+    this.indexA = new Array(3);
+    this.indexB = new Array(3);
   },
 });
 
@@ -3016,7 +3011,7 @@ Box2D.Collision.Shapes.b2PolygonShape = Box2D.inherit({
     if (offset === undefined) offset = 0;
     var normalL = b2Math.MulTMV(xf.R, normal);
     var offsetL = offset - b2Math.Dot(normal, xf.position);
-    var depths = new NVector(this.vertexCount);
+    var depths = new Array(this.vertexCount);
     var diveCount = 0;
     var intoIndex = -1;
     var outoIndex = -1;
@@ -4093,8 +4088,8 @@ Box2D.Dynamics.b2ContactFilter = Box2D.inherit({
 var b2ContactImpulse =
 Box2D.Dynamics.b2ContactImpulse = Box2D.inherit({
   initialize: function() {
-    this.normalImpulses = new NVector(b2Settings.b2_maxManifoldPoints);
-    this.tangentImpulses = new NVector(b2Settings.b2_maxManifoldPoints);
+    this.normalImpulses = new Array(b2Settings.b2_maxManifoldPoints);
+    this.tangentImpulses = new Array(b2Settings.b2_maxManifoldPoints);
   },
 });
 
@@ -6328,7 +6323,7 @@ var b2PositionSolverManifold =
 Box2D.Dynamics.Contacts.b2PositionSolverManifold = Box2D.inherit({
   initialize: function() {
     this.m_normal = new b2Vec2();
-    this.m_separations = new NVector(b2Settings.b2_maxManifoldPoints);
+    this.m_separations = new Array(b2Settings.b2_maxManifoldPoints);
     this.m_points = [];
     for (var i = 0; i < b2Settings.b2_maxManifoldPoints; i++) {
       this.m_points.push(new b2Vec2());
@@ -9611,8 +9606,8 @@ b2DebugDraw.prototype.DrawTransform = function (xf) {
   col.s_incidentEdge = b2Collision.MakeClipPointVector();
   col.s_clipPoints1 = b2Collision.MakeClipPointVector();
   col.s_clipPoints2 = b2Collision.MakeClipPointVector();
-  col.s_edgeAO = new NVector(1);
-  col.s_edgeBO = new NVector(1);
+  col.s_edgeAO = new Array(1);
+  col.s_edgeBO = new Array(1);
   col.s_localTangent = new b2Vec2();
   col.s_localNormal = new b2Vec2();
   col.s_planePoint = new b2Vec2();
@@ -9625,8 +9620,8 @@ b2DebugDraw.prototype.DrawTransform = function (xf) {
   col.b2_nullFeature = 0x000000ff;
 
   Box2D.Collision.b2Distance.s_simplex = new b2Simplex();
-  Box2D.Collision.b2Distance.s_saveA = new NVector(3);
-  Box2D.Collision.b2Distance.s_saveB = new NVector(3);
+  Box2D.Collision.b2Distance.s_saveA = new Array(3);
+  Box2D.Collision.b2Distance.s_saveB = new Array(3);
   Box2D.Collision.b2Manifold.e_circles = 0x0001;
   Box2D.Collision.b2Manifold.e_faceA = 0x0002;
   Box2D.Collision.b2Manifold.e_faceB = 0x0004;
