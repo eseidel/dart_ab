@@ -457,47 +457,47 @@ Box2D.Collision.b2AABB = Box2D.inherit_({
       var t3 = 0;
       var s = 0;
       if (absDX < Number.MIN_VALUE) {
-         if (pX < this.lowerBound.x || this.upperBound.x < pX) return false;
+        if (pX < this.lowerBound.x || this.upperBound.x < pX) return false;
       } else {
-         inv_d = 1 / dX;
-         t1 = (this.lowerBound.x - pX) * inv_d;
-         t2 = (this.upperBound.x - pX) * inv_d;
-         s = (-1);
-         if (t1 > t2) {
-            t3 = t1;
-            t1 = t2;
-            t2 = t3;
-            s = 1;
-         }
-         if (t1 > tmin) {
-            normal.x = s;
-            normal.y = 0;
-            tmin = t1;
-         }
-         tmax = Math.min(tmax, t2);
-         if (tmin > tmax) return false;
+        inv_d = 1 / dX;
+        t1 = (this.lowerBound.x - pX) * inv_d;
+        t2 = (this.upperBound.x - pX) * inv_d;
+        s = (-1);
+        if (t1 > t2) {
+          t3 = t1;
+          t1 = t2;
+          t2 = t3;
+          s = 1;
+        }
+        if (t1 > tmin) {
+          normal.x = s;
+          normal.y = 0;
+          tmin = t1;
+        }
+        tmax = Math.min(tmax, t2);
+        if (tmin > tmax) return false;
       }
 
       if (absDY < Number.MIN_VALUE) {
-         if (pY < this.lowerBound.y || this.upperBound.y < pY) return false;
+        if (pY < this.lowerBound.y || this.upperBound.y < pY) return false;
       } else {
-         inv_d = 1 / dY;
-         t1 = (this.lowerBound.y - pY) * inv_d;
-         t2 = (this.upperBound.y - pY) * inv_d;
-         s = (-1);
-         if (t1 > t2) {
-            t3 = t1;
-            t1 = t2;
-            t2 = t3;
-            s = 1;
-         }
-         if (t1 > tmin) {
-            normal.y = s;
-            normal.x = 0;
-            tmin = t1;
-         }
-         tmax = Math.min(tmax, t2);
-         if (tmin > tmax) return false;
+        inv_d = 1 / dY;
+        t1 = (this.lowerBound.y - pY) * inv_d;
+        t2 = (this.upperBound.y - pY) * inv_d;
+        s = (-1);
+        if (t1 > t2) {
+          t3 = t1;
+          t1 = t2;
+          t2 = t3;
+          s = 1;
+        }
+        if (t1 > tmin) {
+          normal.y = s;
+          normal.x = 0;
+          tmin = t1;
+        }
+        tmax = Math.min(tmax, t2);
+        if (tmin > tmax) return false;
       }
       output.fraction = tmin;
       return true;
