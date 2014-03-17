@@ -4442,15 +4442,9 @@ Box2D.Dynamics.b2Island = Box2D.inherit({
     this.m_allocator = allocator;
     this.m_listener = listener;
     this.m_contactSolver = contactSolver;
-    for (i = this.m_bodies.length;
-    i < bodyCapacity; i++)
-    this.m_bodies[i] = null;
-    for (i = this.m_contacts.length;
-    i < contactCapacity; i++)
-    this.m_contacts[i] = null;
-    for (i = this.m_joints.length;
-    i < jointCapacity; i++)
-    this.m_joints[i] = null;
+    this.m_bodies.length = bodyCapacity;
+    this.m_contacts.length = contactCapacity;
+    this.m_joints.length = jointCapacity;
   },
   Clear: function() {
     this.m_bodyCount = 0;
@@ -4958,9 +4952,9 @@ Box2D.Dynamics.b2World = Box2D.inherit({
     var s;
     var j;
     var bp;
-    var invQ = new b2Vec2;
-    var x1 = new b2Vec2;
-    var x2 = new b2Vec2;
+    var invQ = new b2Vec2();
+    var x1 = new b2Vec2();
+    var x2 = new b2Vec2();
     var xf;
     var b1 = new b2AABB();
     var b2 = new b2AABB();
@@ -5225,13 +5219,17 @@ Box2D.Dynamics.b2World = Box2D.inherit({
         }
       }
     }
-    for (i = 0;
-    i < stack.length; ++i) {
+    // TODO(slighltyoff)
+    var il = stack.length;
+    stack.length = 0;
+    stack.length = il;
+    /*
+    for (var i = 0; i < stack.length; ++i) {
       if (!stack[i]) break;
       stack[i] = null;
     }
-    for (b = this.m_bodyList;
-    b; b = b.m_next) {
+    */
+    for (b = this.m_bodyList; b; b = b.m_next) {
       if (b.IsAwake() == false || b.IsActive() == false) {
         continue;
       }
@@ -5247,25 +5245,21 @@ Box2D.Dynamics.b2World = Box2D.inherit({
     var island = this.m_island;
     island.Initialize(this.m_bodyCount, b2Settings.b2_maxTOIContactsPerIsland, b2Settings.b2_maxTOIJointsPerIsland, null, this.m_contactManager.m_contactListener, this.m_contactSolver);
     var queue = b2World.s_queue;
-    for (b = this.m_bodyList;
-    b; b = b.m_next) {
+    for (b = this.m_bodyList; b; b = b.m_next) {
       b.m_flags &= ~b2Body.e_islandFlag;
       b.m_sweep.t0 = 0;
     }
     var c;
-    for (c = this.m_contactList;
-    c; c = c.m_next) {
+    for (c = this.m_contactList; c; c = c.m_next) {
       c.m_flags &= ~ (b2Contact.e_toiFlag | b2Contact.e_islandFlag);
     }
-    for (j = this.m_jointList;
-    j; j = j.m_next) {
+    for (j = this.m_jointList; j; j = j.m_next) {
       j.m_islandFlag = false;
     }
     for (;;) {
       var minContact = null;
       var minTOI = 1;
-      for (c = this.m_contactList;
-      c; c = c.m_next) {
+      for (c = this.m_contactList; c; c = c.m_next) {
         if (c.IsSensor() == true || c.IsEnabled() == false || c.IsContinuous() == false) {
           continue;
         }
