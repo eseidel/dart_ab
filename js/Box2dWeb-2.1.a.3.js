@@ -173,8 +173,7 @@ Box2D.Common.Math.b2Math = {
   }
 };
 
-var b2Vec2 =
-Box2D.Common.Math.b2Vec2 = Box2D.inherit({
+var b2Vec2 = Box2D.inherit({
   initialize: function(x, y) {
     if (arguments.length) {
       this.Set(x, y);
@@ -265,8 +264,7 @@ Box2D.Common.Math.b2Vec2 = Box2D.inherit({
   },
 });
 
-var b2Vec3 =
-Box2D.Common.Math.b2Vec3 = Box2D.inherit({
+var b2Vec3 = Box2D.inherit({
   initialize: function(x, y, z) {
     if (arguments.length) {
       this.Set(x, y, z);
@@ -311,8 +309,7 @@ Box2D.Common.Math.b2Vec3 = Box2D.inherit({
   },
 });
 
-var b2Sweep =
-Box2D.Common.Math.b2Sweep = Box2D.inherit({
+var b2Sweep = Box2D.inherit({
   initialize: function() {
     this.localCenter = new b2Vec2();
     this.c0 = new b2Vec2();
@@ -361,8 +358,7 @@ Box2D.Common.Math.b2Sweep = Box2D.inherit({
   }
 });
 
-var b2AABB =
-Box2D.Collision.b2AABB = Box2D.inherit({
+var b2AABB = Box2D.inherit({
    initialize: function () {
       this.lowerBound = new b2Vec2();
       this.upperBound = new b2Vec2();
@@ -471,8 +467,7 @@ b2AABB.Combine = function (aabb1, aabb2) {
    return aabb;
 };
 
-var b2Bound =
-Box2D.Collision.b2Bound = Box2D.inherit({
+var b2Bound = Box2D.inherit({
    IsLower: function () {
       return (this.value & 1) == 0;
    },
@@ -492,16 +487,14 @@ Box2D.Collision.b2Bound = Box2D.inherit({
    },
 });
 
-var b2BoundValues =
-Box2D.Collision.b2BoundValues = Box2D.inherit({
+var b2BoundValues = Box2D.inherit({
    intitialize: function() {
       this.lowerValues = new Array(2);
       this.upperValues = new Array(2);
    }
 });
 
-var b2Collision =
-Box2D.Collision.b2Collision = Box2D.inherit({});
+var b2Collision = Box2D.inherit({});
 b2Collision.ClipSegmentToLine = function (vOut, vIn, normal, offset) {
    if (offset === undefined) offset = 0;
    var numOut = 0;
@@ -938,8 +931,7 @@ b2Collision.TestOverlap = function (a, b) {
   return true;
 };
 
-var b2ContactID =
-Box2D.Collision.b2ContactID = Box2D.inherit({
+var b2ContactID = Box2D.inherit({
   initialize: function() {
     this.features = new Features();
     this.features._m_id = this;
@@ -967,8 +959,7 @@ Box2D.Collision.b2ContactID = Box2D.inherit({
   },
 });
 
-var b2ContactPoint =
-Box2D.Collision.b2ContactPoint = Box2D.inherit({
+var b2ContactPoint = Box2D.inherit({
   initialize: function() {
     this.position = new b2Vec2();
     this.velocity = new b2Vec2();
@@ -977,8 +968,7 @@ Box2D.Collision.b2ContactPoint = Box2D.inherit({
   }
 });
 
-var b2Distance =
-Box2D.Collision.b2Distance = Box2D.inherit({});
+var b2Distance = Box2D.inherit({});
 b2Distance.Distance = function (output, cache, input) {
   ++b2Distance.b2_gjkCalls;
   var proxyA = input.proxyA;
@@ -1076,8 +1066,7 @@ b2Distance.Distance = function (output, cache, input) {
 // FIXME: kill or extend!
 var b2DistanceInput = Box2D.Collision.b2DistanceInput = Box2D.inherit({});;
 
-var b2DistanceOutput =
-Box2D.Collision.b2DistanceOutput = Box2D.inherit({
+var b2DistanceOutput = Box2D.inherit({
   initialize: function() {
     this.pointA = new b2Vec2();
     this.pointB = new b2Vec2();
@@ -1086,8 +1075,7 @@ Box2D.Collision.b2DistanceOutput = Box2D.inherit({
 
 // FIXME(slightlyoff): this class doesn't make much sense. Shouldn't these be
 // methods on the shape hierarchy?
-var b2DistanceProxy =
-Box2D.Collision.b2DistanceProxy = Box2D.inherit({
+var b2DistanceProxy = Box2D.inherit({
   initialize: function() {
     this.vertexCount = 0;
     this.m_vertices = [];
@@ -1137,8 +1125,7 @@ Box2D.Collision.b2DistanceProxy = Box2D.inherit({
   },
 });
 
-var b2DynamicTree =
-Box2D.Collision.b2DynamicTree = Box2D.inherit({
+var b2DynamicTree = Box2D.inherit({
   initialize: function() {
     this.m_root = null;
     this.m_freeList = null;
@@ -1364,8 +1351,7 @@ Box2D.Collision.b2DynamicTree = Box2D.inherit({
   },
 });
 
-var b2DynamicTreeBroadPhase =
-Box2D.Collision.b2DynamicTreeBroadPhase = Box2D.inherit({
+var b2DynamicTreeBroadPhase = Box2D.inherit({
   initialize: function() {
     this.m_tree = new b2DynamicTree();
     this.m_moveBuffer = [];
@@ -1526,12 +1512,7 @@ Box2D.Collision.b2DynamicTreeBroadPhase = Box2D.inherit({
   ComparePairs: function (pair1, pair2) { return 0; },
 });
 
-var IBroadPhase = Box2D.Collision.IBroadPhase = 'IBroadPhase';
-b2DynamicTreeBroadPhase.__implements = {};
-b2DynamicTreeBroadPhase.__implements[IBroadPhase] = true;
-
-var b2DynamicTreeNode =
-Box2D.Collision.b2DynamicTreeNode = Box2D.inherit({
+var b2DynamicTreeNode = Box2D.inherit({
   initialize: function() {
     this.aabb = new b2AABB();
     this.child1 = null;
@@ -1543,19 +1524,17 @@ Box2D.Collision.b2DynamicTreeNode = Box2D.inherit({
   },
 });
 
-var b2DynamicTreePair =
-Box2D.Collision.b2DynamicTreePair = Box2D.inherit({
+var b2DynamicTreePair = Box2D.inherit({
   initialize: function() {
     this.proxyA = null;
     this.proxyB = null;
   }
 });
 
-var b2Manifold =
-Box2D.Collision.b2Manifold = Box2D.inherit({
+var b2Manifold = Box2D.inherit({
   initialize: function() {
     this.m_pointCount = 0;
-    this.m_points = [];
+    this.m_points = new Array(b2Settings.b2_maxManifoldPoints);
     for (var i = 0; i < b2Settings.b2_maxManifoldPoints; i++) {
       this.m_points[i] = new b2ManifoldPoint();
     }
@@ -1587,8 +1566,7 @@ Box2D.Collision.b2Manifold = Box2D.inherit({
   },
 });
 
-var b2ManifoldPoint =
-Box2D.Collision.b2ManifoldPoint = Box2D.inherit({
+var b2ManifoldPoint = Box2D.inherit({
   initialize: function() {
     this.m_localPoint = new b2Vec2();
     this.m_id = new b2ContactID();
@@ -1608,8 +1586,7 @@ Box2D.Collision.b2ManifoldPoint = Box2D.inherit({
   }
 });
 
-var b2Point =
-Box2D.Collision.b2Point = Box2D.inherit({
+var b2Point = Box2D.inherit({
   initialize: function() {
     this.p = new b2Vec2();
   },
@@ -1621,8 +1598,7 @@ Box2D.Collision.b2Point = Box2D.inherit({
   },
 });
 
-var b2RayCastInput =
-Box2D.Collision.b2RayCastInput = Box2D.inherit({
+var b2RayCastInput = Box2D.inherit({
   initialize: function(p1, p2, maxFraction) {
     this.p1 = p1 || new b2Vec2();
     this.p2 = p2 || new b2Vec2();
@@ -1630,15 +1606,13 @@ Box2D.Collision.b2RayCastInput = Box2D.inherit({
   },
 });
 
-var b2RayCastOutput =
-Box2D.Collision.b2RayCastOutput = Box2D.inherit({
+var b2RayCastOutput = Box2D.inherit({
   initialize: function(p1, p2, maxFraction) {
     this.normal = new b2Vec2();
   },
 });
 
-var b2Segment =
-Box2D.Collision.b2Segment = Box2D.inherit({
+var b2Segment = Box2D.inherit({
   initialize: function() {
     this.p1 = new b2Vec2();
     this.p2 = new b2Vec2();
@@ -1696,8 +1670,7 @@ Box2D.Collision.b2Segment = Box2D.inherit({
   },
 });
 
-var b2SeparationFunction =
-Box2D.Collision.b2SeparationFunction = Box2D.inherit({
+var b2SeparationFunction = Box2D.inherit({
   initialize: function() {
     this.m_localPoint = new b2Vec2();
     this.m_axis = new b2Vec2();
@@ -1897,8 +1870,7 @@ Box2D.Collision.b2SeparationFunction = Box2D.inherit({
   },
 });
 
-var b2Simplex =
-Box2D.Collision.b2Simplex = Box2D.inherit({
+var b2Simplex = Box2D.inherit({
   initialize: function() {
     this.m_count = 0;
     this.m_v1 = new b2SimplexVertex();
@@ -2118,16 +2090,14 @@ Box2D.Collision.b2Simplex = Box2D.inherit({
   },
 });
 
-var b2SimplexCache =
-Box2D.Collision.b2SimplexCache = Box2D.inherit({
+var b2SimplexCache = Box2D.inherit({
   initialize: function() {
     this.indexA = new Array(3);
     this.indexB = new Array(3);
   },
 });
 
-var b2SimplexVertex =
-Box2D.Collision.b2SimplexVertex = Box2D.inherit({
+var b2SimplexVertex = Box2D.inherit({
   // FIXME(slightlyoff): initialize()?
   Set: function(other) {
     this.wA.SetV(other.wA);
@@ -2246,13 +2216,12 @@ var b2TimeOfImpact = {
   },
 };
 
-var b2WorldManifold =
-Box2D.Collision.b2WorldManifold = Box2D.inherit({
+var b2WorldManifold = Box2D.inherit({
   initialize: function () {
     this.m_normal = new b2Vec2();
-    this.m_points = [];
+    this.m_points = new Array(b2Settings.b2_maxManifoldPoints);
     for (var x = 0; x < b2Settings.b2_maxManifoldPoints; x++) {
-      this.m_points.push(new b2Vec2());
+      this.m_points[x] = new b2Vec2();
     }
   },
   Initialize: function (manifold, xfA, radiusA, xfB, radiusB) {
@@ -2340,8 +2309,7 @@ Box2D.Collision.b2WorldManifold = Box2D.inherit({
   },
 });
 
-var ClipVertex =
-Box2D.Collision.ClipVertex = Box2D.inherit({
+var ClipVertex = Box2D.inherit({
   initialize: function () {
     this.v = new b2Vec2();
     this.id = new b2ContactID();
@@ -2352,8 +2320,7 @@ Box2D.Collision.ClipVertex = Box2D.inherit({
   },
 });
 
-var Features =
-Box2D.Collision.Features = Box2D.inherit({
+var Features = Box2D.inherit({
   initialize: function () {
     this._referenceEdge = null;
     this._incidentEdge = null;
@@ -2395,8 +2362,7 @@ Box2D.Collision.Features = Box2D.inherit({
   },
 });
 
-var b2Shape =
-Box2D.Collision.Shapes.b2Shape = Box2D.inherit({
+var b2Shape = Box2D.inherit({
   initialize: function() {
     this.m_radius = b2Settings.b2_linearSlop;
   },
@@ -2440,8 +2406,7 @@ b2Shape.prototype.b2Shape = function() {
   this.m_radius = b2Settings.b2_linearSlop;
 };
 
-var b2CircleShape =
-Box2D.Collision.Shapes.b2CircleShape = Box2D.inherit({
+var b2CircleShape = Box2D.inherit({
   extends: b2Shape,
   initialize: function (radius) {
     b2Shape.call(this);
@@ -2541,8 +2506,7 @@ Box2D.Collision.Shapes.b2CircleShape = Box2D.inherit({
   },
 });
 
-var b2EdgeChainDef =
-Box2D.Collision.Shapes.b2EdgeChainDef = Box2D.inherit({
+var b2EdgeChainDef = Box2D.inherit({
   initialize: function() {
     this.vertexCount = 0;
     this.isALoop = true;
@@ -2550,8 +2514,7 @@ Box2D.Collision.Shapes.b2EdgeChainDef = Box2D.inherit({
   }
 });
 
-var b2EdgeShape =
-Box2D.Collision.Shapes.b2EdgeShape = Box2D.inherit({
+var b2EdgeShape = Box2D.inherit({
   extends: b2Shape,
   initialize: function (v1, v2) {
     b2Shape.call(this);
@@ -2738,8 +2701,7 @@ Box2D.Collision.Shapes.b2EdgeShape = Box2D.inherit({
   },
 });
 
-var b2MassData =
-Box2D.Collision.Shapes.b2MassData = Box2D.inherit({
+var b2MassData = Box2D.inherit({
   initialize: function() {
     this.mass = 0;
     this.center = new b2Vec2(0, 0);
@@ -2747,8 +2709,7 @@ Box2D.Collision.Shapes.b2MassData = Box2D.inherit({
   }
 });
 
-var b2PolygonShape =
-Box2D.Collision.Shapes.b2PolygonShape = Box2D.inherit({
+var b2PolygonShape = Box2D.inherit({
   extends: b2Shape,
   initialize: function () {
     b2Shape.call(this);
@@ -2777,13 +2738,7 @@ Box2D.Collision.Shapes.b2PolygonShape = Box2D.inherit({
   },
   SetAsArray: function(vertices, vertexCount) {
     if (vertexCount === undefined) vertexCount = 0;
-    var v = [];
-    var i = 0, tVec;
-    for (i = 0; i < vertices.length; ++i) {
-      tVec = vertices[i];
-      v.push(tVec);
-    }
-    this.SetAsVector(v, vertexCount);
+    this.SetAsVector(vertices.slice(0), vertexCount);
   },
   /*
   b2PolygonShape.AsArray: function(vertices, vertexCount) {
@@ -3216,8 +3171,7 @@ b2PolygonShape.ComputeOBB = function (obb, vs, count) {
   }
 }
 
-var b2Color =
-Box2D.Common.b2Color = Box2D.inherit({
+var b2Color = Box2D.inherit({
   initialize: function (rr, gg, bb) {
     this.Set(rr, gg, bb);
   },
@@ -3284,8 +3238,7 @@ Box2D.Common.b2Settings = {
   b2_angularSleepTolerance: 2.0 / 180 * Math.PI,
 };
 
-var b2Mat22 =
-Box2D.Common.Math.b2Mat22 = Box2D.inherit({
+var b2Mat22 = Box2D.inherit({
   initialize: function() {
     this.col1 = new b2Vec2();
     this.col2 = new b2Vec2();
@@ -3380,8 +3333,7 @@ b2Mat22.FromVV = function(c1, c2) {
 };
 
 
-var b2Mat33 =
-Box2D.Common.Math.b2Mat33 = Box2D.inherit({
+var b2Mat33 = Box2D.inherit({
   initialize: function(c1, c2, c3) {
     // FIXME: move to Array or ByteArray?
     this.col1 = new b2Vec3();
@@ -3462,8 +3414,7 @@ Box2D.Common.Math.b2Mat33 = Box2D.inherit({
   },
 });
 
-var b2Transform =
-Box2D.Common.Math.b2Transform = Box2D.inherit({
+var b2Transform = Box2D.inherit({
   initialize: function(pos, r) {
     this.position = new b2Vec2;
     this.R = new b2Mat22();
@@ -3490,8 +3441,7 @@ Box2D.Common.Math.b2Transform = Box2D.inherit({
 
 
 
-var b2Body =
-Box2D.Dynamics.b2Body = Box2D.inherit({
+var b2Body = Box2D.inherit({
   initialize: function(bd, world) {
     this.m_xf = new b2Transform();
     this.m_sweep = new b2Sweep();
@@ -4065,8 +4015,7 @@ Box2D.Dynamics.b2Body = Box2D.inherit({
   },
 });
 
-var b2BodyDef =
-Box2D.Dynamics.b2BodyDef = Box2D.inherit({
+var b2BodyDef = Box2D.inherit({
   initialize: function() {
     this.position = new b2Vec2();
     this.linearVelocity = new b2Vec2();
@@ -4087,8 +4036,7 @@ Box2D.Dynamics.b2BodyDef = Box2D.inherit({
   }
 });
 
-var b2ContactFilter =
-Box2D.Dynamics.b2ContactFilter = Box2D.inherit({
+var b2ContactFilter = Box2D.inherit({
   ShouldCollide: function (fixtureA, fixtureB) {
     var filter1 = fixtureA.GetFilterData();
     var filter2 = fixtureB.GetFilterData();
@@ -4106,24 +4054,22 @@ Box2D.Dynamics.b2ContactFilter = Box2D.inherit({
   },
 });
 
-var b2ContactImpulse =
-Box2D.Dynamics.b2ContactImpulse = Box2D.inherit({
+var b2ContactImpulse = Box2D.inherit({
   initialize: function() {
     this.normalImpulses = new Array(b2Settings.b2_maxManifoldPoints);
     this.tangentImpulses = new Array(b2Settings.b2_maxManifoldPoints);
   },
 });
 
-var b2ContactListener =
-Box2D.Dynamics.b2ContactListener = Box2D.inherit({
+// FIXME(slighltyoff)
+var b2ContactListener = Box2D.inherit({
   BeginContact: function (contact) {},
   EndContact: function (contact) {},
   PreSolve: function (contact, oldManifold) {},
   PostSolve: function (contact, impulse) {},
 });
 
-var b2ContactManager =
-Box2D.Dynamics.b2ContactManager = Box2D.inherit({
+var b2ContactManager = Box2D.inherit({
   initialize: function () {
     this.m_world = null;
     this.m_contactCount = 0;
@@ -4267,8 +4213,8 @@ Box2D.Dynamics.b2ContactManager = Box2D.inherit({
   },
 });
 
-var b2DestructionListener =
-Box2D.Dynamics.b2DestructionListener = Box2D.inherit({
+// FIXME(slighltyoff)
+var b2DestructionListener = Box2D.inherit({
   SayGoodbyeJoint: function(joint) {},
   SayGoodbyeFixture: function(fixture) {},
 });
@@ -5480,9 +5426,9 @@ Box2D.Dynamics.b2World = Box2D.inherit({
         var i = 0;
         var vertexCount = shape.vertexCount;
         var localVertices = shape.GetVertices();
-        var vertices = [];
+        var vertices = new Array(vertexCount); // FIXME(slighltyoff): map()
         for (i = 0; i < vertexCount; ++i) {
-          vertices.push(b2Math.MulX(xf, localVertices[i]));
+          vertices[i] = b2Math.MulX(xf, localVertices[i]);
         }
         this.m_debugDraw.DrawSolidPolygon(vertices, vertexCount, color);
         break;
@@ -5496,8 +5442,7 @@ Box2D.Dynamics.b2World = Box2D.inherit({
   },
 });
 
-var b2Contact =
-Box2D.Dynamics.Contacts.b2Contact = Box2D.inherit({
+var b2Contact = Box2D.inherit({
   initialize: function () {
     this.m_nodeA = new b2ContactEdge();
     this.m_nodeB = new b2ContactEdge();
@@ -5664,23 +5609,21 @@ Box2D.Dynamics.Contacts.b2Contact = Box2D.inherit({
   },
 });
 
-var b2ContactConstraint =
-Box2D.Dynamics.Contacts.b2ContactConstraint = Box2D.inherit({
+var b2ContactConstraint = Box2D.inherit({
   initialize: function() {
     this.localPlaneNormal = new b2Vec2();
     this.localPoint = new b2Vec2();
     this.normal = new b2Vec2();
     this.normalMass = new b2Mat22();
     this.K = new b2Mat22();
-    this.points = [];
+    this.points = new Array(b2Settings.b2_maxManifoldPoints);
     for (var i = 0; i < b2Settings.b2_maxManifoldPoints; i++) {
-      this.points.push(new b2ContactConstraintPoint());
+      this.points[i] = new b2ContactConstraintPoint();
     }
   }
 });
 
-var b2CircleContact =
-Box2D.Dynamics.Contacts.b2CircleContact = Box2D.inherit({
+var b2CircleContact = Box2D.inherit({
   extends: b2Contact,
   initialize: function() {
     b2Contact.apply(this, arguments);
@@ -5705,8 +5648,7 @@ Box2D.Dynamics.Contacts.b2CircleContact = Box2D.inherit({
 b2CircleContact.Create = function(allocator) { return new b2CircleContact(); };
 b2CircleContact.Destroy = function(contact, allocator) {};
 
-var b2ContactConstraintPoint =
-Box2D.Dynamics.Contacts.b2ContactConstraintPoint = Box2D.inherit({
+var b2ContactConstraintPoint = Box2D.inherit({
   initialize: function() {
     this.localPoint = new b2Vec2();
     this.rA = new b2Vec2();
@@ -5714,11 +5656,9 @@ Box2D.Dynamics.Contacts.b2ContactConstraintPoint = Box2D.inherit({
   },
 });
 
-var b2ContactEdge =
-Box2D.Dynamics.Contacts.b2ContactEdge = function() {};
+var b2ContactEdge = function() {};
 
-var b2ContactFactory =
-Box2D.Dynamics.Contacts.b2ContactFactory = Box2D.inherit({
+var b2ContactFactory = Box2D.inherit({
   initialize: function(allocator) {
     this.m_allocator = allocator;
     this.InitializeRegisters();
@@ -5794,14 +5734,11 @@ Box2D.Dynamics.Contacts.b2ContactFactory = Box2D.inherit({
   },
 });
 
-var b2ContactEdge =
-Box2D.Dynamics.Contacts.b2ContactEdge = function() {};
+var b2ContactEdge = function() {};
 
-var b2ContactRegister =
-Box2D.Dynamics.Contacts.b2ContactRegister = function() {};
+var b2ContactRegister = function() {};
 
-var b2ContactResult =
-Box2D.Dynamics.Contacts.b2ContactResult = Box2D.inherit({
+var b2ContactResult = Box2D.inherit({
   initialize: function () {
     this.position = new b2Vec2();
     this.normal = new b2Vec2();
@@ -5809,8 +5746,7 @@ Box2D.Dynamics.Contacts.b2ContactResult = Box2D.inherit({
   }
 });
 
-var b2ContactSolver =
-Box2D.Dynamics.Contacts.b2ContactSolver = Box2D.inherit({
+var b2ContactSolver = Box2D.inherit({
   initialize: function () {
     this.m_step = new b2TimeStep();
     this.m_constraints = new Array();
@@ -6210,8 +6146,7 @@ Box2D.Dynamics.Contacts.b2ContactSolver = Box2D.inherit({
   },
 });
 
-var b2EdgeAndCircleContact =
-Box2D.Dynamics.Contacts.b2EdgeAndCircleContact = Box2D.inherit({
+var b2EdgeAndCircleContact = Box2D.inherit({
   extends: b2Contact,
   Reset: function (fixtureA, fixtureB) {
     b2Contact.prototype.Reset.call(this, fixtureA, fixtureB);
@@ -6234,8 +6169,7 @@ b2EdgeAndCircleContact.Create = function (allocator) {
 };
 b2EdgeAndCircleContact.Destroy = function (contact, allocator) {}
 
-var b2NullContact =
-Box2D.Dynamics.Contacts.b2NullContact = Box2D.inherit({
+var b2NullContact = Box2D.inherit({
   extends: b2Contact,
   initialize: function() {
     b2Contact.apply(this, arguments);
@@ -6243,8 +6177,7 @@ Box2D.Dynamics.Contacts.b2NullContact = Box2D.inherit({
   Evaluate: function () {},
 });
 
-var b2PolyAndCircleContact =
-Box2D.Dynamics.Contacts.b2PolyAndCircleContact = Box2D.inherit({
+var b2PolyAndCircleContact = Box2D.inherit({
   extends: b2Contact,
   initialize: function() {
     b2Contact.apply(this, arguments);
@@ -6271,8 +6204,7 @@ b2PolyAndCircleContact.Create = function(allocator) {
 };
 b2PolyAndCircleContact.Destroy = function(contact, allocator) {}
 
-var b2PolyAndEdgeContact =
-Box2D.Dynamics.Contacts.b2PolyAndEdgeContact = Box2D.inherit({
+var b2PolyAndEdgeContact = Box2D.inherit({
   extends: b2Contact,
   initialize: function() {
     b2Contact.apply(this, arguments);
@@ -6295,8 +6227,7 @@ b2PolyAndEdgeContact.Create = function (allocator) {
 }
 b2PolyAndEdgeContact.Destroy = function (contact, allocator) {};
 
-var b2PolygonContact =
-Box2D.Dynamics.Contacts.b2PolygonContact = Box2D.inherit({
+var b2PolygonContact = Box2D.inherit({
   extends: b2Contact,
   initialize: function() {
     b2Contact.apply(this, arguments);
@@ -6321,14 +6252,13 @@ b2PolygonContact.Create = function (allocator) {
 }
 b2PolygonContact.Destroy = function (contact, allocator) {}
 
-var b2PositionSolverManifold =
-Box2D.Dynamics.Contacts.b2PositionSolverManifold = Box2D.inherit({
+var b2PositionSolverManifold = Box2D.inherit({
   initialize: function() {
     this.m_normal = new b2Vec2();
     this.m_separations = new Array(b2Settings.b2_maxManifoldPoints);
-    this.m_points = [];
+    this.m_points = new Array(b2Settings.b2_maxManifoldPoints);
     for (var i = 0; i < b2Settings.b2_maxManifoldPoints; i++) {
-      this.m_points.push(new b2Vec2());
+      this.m_points[i] = new b2Vec2();
     }
   },
   Initialize: function (cc) {
@@ -6416,8 +6346,7 @@ Box2D.Dynamics.Contacts.b2PositionSolverManifold = Box2D.inherit({
   },
 });
 
-var b2BuoyancyController =
-Box2D.Dynamics.Controllers.b2BuoyancyController = Box2D.inherit({
+var b2BuoyancyController = Box2D.inherit({
   extends: b2Controller,
   initialize: function() {
     this.normal = new b2Vec2(0, (-1));
@@ -6488,8 +6417,7 @@ Box2D.Dynamics.Controllers.b2BuoyancyController = Box2D.inherit({
   },
 });
 
-var b2ConstantAccelController =
-Box2D.Dynamics.Controllers.b2ConstantAccelController = Box2D.inherit({
+var b2ConstantAccelController = Box2D.inherit({
   extends: b2Controller,
   initialize: function() {
     this.A = new b2Vec2(0, 0);
@@ -6509,8 +6437,7 @@ Box2D.Dynamics.Controllers.b2ConstantAccelController = Box2D.inherit({
   },
 });
 
-var b2Controller =
-Box2D.Dynamics.Controllers.b2Controller = Box2D.inherit({
+var b2Controller = Box2D.inherit({
   Step: function (step) {},
   Draw: function (debugDraw) {},
   AddBody: function (body) {
@@ -6556,8 +6483,7 @@ Box2D.Dynamics.Controllers.b2Controller = Box2D.inherit({
   },
 });
 
-var b2ConstantForceController =
-Box2D.Dynamics.Controllers.b2ConstantForceController = Box2D.inherit({
+var b2ConstantForceController = Box2D.inherit({
   extends: b2Controller,
   initialize: function() {
     this.F = new b2Vec2(0, 0);
@@ -6571,11 +6497,9 @@ Box2D.Dynamics.Controllers.b2ConstantForceController = Box2D.inherit({
   },
 });
 
-var b2ControllerEdge =
-Box2D.Dynamics.Controllers.b2ControllerEdge = function() {};
+var b2ControllerEdge = function() {};
 
-var b2GravityController =
-Box2D.Dynamics.Controllers.b2GravityController = Box2D.inherit({
+var b2GravityController = Box2D.inherit({
   extends: b2Controller,
   initialize: function() {
     this.G = 1;
@@ -6635,8 +6559,7 @@ Box2D.Dynamics.Controllers.b2GravityController = Box2D.inherit({
   },
 });
 
-var b2TensorDampingController =
-Box2D.Dynamics.Controllers.b2TensorDampingController = Box2D.inherit({
+var b2TensorDampingController = Box2D.inherit({
   extends: b2Controller,
   initialize: function() {
     this.T = new b2Mat22();
@@ -6670,8 +6593,7 @@ Box2D.Dynamics.Controllers.b2TensorDampingController = Box2D.inherit({
   },
 });
 
-var b2Joint =
-Box2D.Dynamics.Joints.b2Joint = Box2D.inherit({
+var b2Joint = Box2D.inherit({
   initialize: function (def) {
     this.m_edgeA = new b2JointEdge();
     this.m_edgeB = new b2JointEdge();
@@ -6741,14 +6663,7 @@ b2Joint.Create = function(def, allocator) {
 };
 b2Joint.Destroy = function(joint, allocator) {};
 
-// FIXME(slightlyoff): clobber when Joint types are ported
-b2Joint.b2Joint =
-b2Joint.prototype.b2Joint = function(def) {
-  b2Joint.call(this, def);
-};
-
-var b2DistanceJoint =
-Box2D.Dynamics.Joints.b2DistanceJoint = Box2D.inherit({
+var b2DistanceJoint = Box2D.inherit({
   extends: b2Joint,
   initialize: function(def) {
     b2Joint.call(this, def);
@@ -6927,8 +6842,7 @@ Box2D.Dynamics.Joints.b2DistanceJoint = Box2D.inherit({
   },
 });
 
-var b2JointDef =
-Box2D.Dynamics.Joints.b2JointDef = Box2D.inherit({
+var b2JointDef = Box2D.inherit({
   initialize: function() {
     this.type = b2Joint.e_unknownJoint; // FIXME(slightlyoff);
   },
@@ -6940,11 +6854,8 @@ Box2D.Dynamics.Joints.b2JointDef = Box2D.inherit({
     this.collideConnected = false;
   },
 });
-// FIXME(slightlyoff): remove when JointDef types are ported
-b2JointDef.b2JointDef = function () {};
 
-var b2DistanceJointDef =
-Box2D.Dynamics.Joints.b2DistanceJointDef = Box2D.inherit({
+var b2DistanceJointDef = Box2D.inherit({
   extends: b2JointDef,
   initialize: function() {
     b2JointDef.apply(this, arguments);
@@ -6968,8 +6879,7 @@ Box2D.Dynamics.Joints.b2DistanceJointDef = Box2D.inherit({
   },
 });
 
-var b2FrictionJoint =
-Box2D.Dynamics.Joints.b2FrictionJoint = Box2D.inherit({
+var b2FrictionJoint = Box2D.inherit({
   extends: b2Joint,
   initialize: function(def) {
     b2Joint.apply(this, arguments);
@@ -7132,8 +7042,7 @@ Box2D.Dynamics.Joints.b2FrictionJoint = Box2D.inherit({
 });
 
 
-var b2FrictionJointDef =
-Box2D.Dynamics.Joints.b2FrictionJointDef = Box2D.inherit({
+var b2FrictionJointDef = Box2D.inherit({
   extends: b2JointDef,
   initialize: function() {
     b2JointDef.apply(this, arguments);
@@ -7151,8 +7060,7 @@ Box2D.Dynamics.Joints.b2FrictionJointDef = Box2D.inherit({
   },
 });
 
-var b2GearJoint =
-Box2D.Dynamics.Joints.b2GearJoint = Box2D.inherit({
+var b2GearJoint = Box2D.inherit({
   extends: b2GearJoint,
   initialize: function(def) {
     b2Joint.apply(this, arguments);
@@ -7339,8 +7247,7 @@ Box2D.Dynamics.Joints.b2GearJoint = Box2D.inherit({
   },
 });
 
-var b2GearJointDef =
-Box2D.Dynamics.Joints.b2GearJointDef = Box2D.inherit({
+var b2GearJointDef = Box2D.inherit({
   extends: b2JointDef,
   initialize: function() {
     b2JointDef.apply(this, arguments);
@@ -7351,8 +7258,7 @@ Box2D.Dynamics.Joints.b2GearJointDef = Box2D.inherit({
   },
 });
 
-var b2Jacobian =
-Box2D.Dynamics.Joints.b2Jacobian = Box2D.inherit({
+var b2Jacobian = Box2D.inherit({
   // extends: b2JointDef,
   initialize: function() {
     // b2JointDef.apply(this, arguments);
@@ -7380,12 +7286,9 @@ Box2D.Dynamics.Joints.b2Jacobian = Box2D.inherit({
   },
 });
 
-var b2JointEdge =
-Box2D.Dynamics.Joints.b2JointEdge = function() {};
-b2JointEdge.b2JointEdge = b2JointEdge;
+var b2JointEdge = function() {};
 
-var b2RevoluteJoint =
-Box2D.Dynamics.Joints.b2RevoluteJoint = Box2D.inherit({
+var b2RevoluteJoint = Box2D.inherit({
   extends: b2Joint,
   initialize: function(def) {
     b2Joint.apply(this, arguments);
@@ -7688,77 +7591,76 @@ Box2D.Dynamics.Joints.b2RevoluteJoint = Box2D.inherit({
       bB.m_sweep.a += bB.m_invI * limitImpulse;
       bA.SynchronizeTransform();
       bB.SynchronizeTransform();
-    } {
-      tMat = bA.m_xf.R;
-      var r1X = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
-      var r1Y = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
-      tX = (tMat.col1.x * r1X + tMat.col2.x * r1Y);
-      r1Y = (tMat.col1.y * r1X + tMat.col2.y * r1Y);
-      r1X = tX;
-      tMat = bB.m_xf.R;
-      var r2X = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
-      var r2Y = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
-      tX = (tMat.col1.x * r2X + tMat.col2.x * r2Y);
-      r2Y = (tMat.col1.y * r2X + tMat.col2.y * r2Y);
-      r2X = tX;
-      var CX = bB.m_sweep.c.x + r2X - bA.m_sweep.c.x - r1X;
-      var CY = bB.m_sweep.c.y + r2Y - bA.m_sweep.c.y - r1Y;
-      var CLengthSquared = CX * CX + CY * CY;
-      var CLength = Math.sqrt(CLengthSquared);
-      positionError = CLength;
-      var invMass1 = bA.m_invMass;
-      var invMass2 = bB.m_invMass;
-      var invI1 = bA.m_invI;
-      var invI2 = bB.m_invI;
-      var k_allowedStretch = 10 * b2Settings.b2_linearSlop;
-      if (CLengthSquared > k_allowedStretch * k_allowedStretch) {
-        var uX = CX / CLength;
-        var uY = CY / CLength;
-        var k = invMass1 + invMass2;
-        var m = 1 / k;
-        impulseX = m * ((-CX));
-        impulseY = m * ((-CY));
-        var k_beta = 0.5;
-        bA.m_sweep.c.x -= k_beta * invMass1 * impulseX;
-        bA.m_sweep.c.y -= k_beta * invMass1 * impulseY;
-        bB.m_sweep.c.x += k_beta * invMass2 * impulseX;
-        bB.m_sweep.c.y += k_beta * invMass2 * impulseY;
-        CX = bB.m_sweep.c.x + r2X - bA.m_sweep.c.x - r1X;
-        CY = bB.m_sweep.c.y + r2Y - bA.m_sweep.c.y - r1Y;
-      }
-      this.K1.col1.x = invMass1 + invMass2;
-      this.K1.col2.x = 0;
-      this.K1.col1.y = 0;
-      this.K1.col2.y = invMass1 + invMass2;
-      this.K2.col1.x = invI1 * r1Y * r1Y;
-      this.K2.col2.x = (-invI1 * r1X * r1Y);
-      this.K2.col1.y = (-invI1 * r1X * r1Y);
-      this.K2.col2.y = invI1 * r1X * r1X;
-      this.K3.col1.x = invI2 * r2Y * r2Y;
-      this.K3.col2.x = (-invI2 * r2X * r2Y);
-      this.K3.col1.y = (-invI2 * r2X * r2Y);
-      this.K3.col2.y = invI2 * r2X * r2X;
-      this.K.SetM(this.K1);
-      this.K.AddM(this.K2);
-      this.K.AddM(this.K3);
-      this.K.Solve(b2RevoluteJoint.tImpulse, (-CX), (-CY));
-      impulseX = b2RevoluteJoint.tImpulse.x;
-      impulseY = b2RevoluteJoint.tImpulse.y;
-      bA.m_sweep.c.x -= bA.m_invMass * impulseX;
-      bA.m_sweep.c.y -= bA.m_invMass * impulseY;
-      bA.m_sweep.a -= bA.m_invI * (r1X * impulseY - r1Y * impulseX);
-      bB.m_sweep.c.x += bB.m_invMass * impulseX;
-      bB.m_sweep.c.y += bB.m_invMass * impulseY;
-      bB.m_sweep.a += bB.m_invI * (r2X * impulseY - r2Y * impulseX);
-      bA.SynchronizeTransform();
-      bB.SynchronizeTransform();
     }
+
+    tMat = bA.m_xf.R;
+    var r1X = this.m_localAnchor1.x - bA.m_sweep.localCenter.x;
+    var r1Y = this.m_localAnchor1.y - bA.m_sweep.localCenter.y;
+    tX = (tMat.col1.x * r1X + tMat.col2.x * r1Y);
+    r1Y = (tMat.col1.y * r1X + tMat.col2.y * r1Y);
+    r1X = tX;
+    tMat = bB.m_xf.R;
+    var r2X = this.m_localAnchor2.x - bB.m_sweep.localCenter.x;
+    var r2Y = this.m_localAnchor2.y - bB.m_sweep.localCenter.y;
+    tX = (tMat.col1.x * r2X + tMat.col2.x * r2Y);
+    r2Y = (tMat.col1.y * r2X + tMat.col2.y * r2Y);
+    r2X = tX;
+    var CX = bB.m_sweep.c.x + r2X - bA.m_sweep.c.x - r1X;
+    var CY = bB.m_sweep.c.y + r2Y - bA.m_sweep.c.y - r1Y;
+    var CLengthSquared = CX * CX + CY * CY;
+    var CLength = Math.sqrt(CLengthSquared);
+    positionError = CLength;
+    var invMass1 = bA.m_invMass;
+    var invMass2 = bB.m_invMass;
+    var invI1 = bA.m_invI;
+    var invI2 = bB.m_invI;
+    var k_allowedStretch = 10 * b2Settings.b2_linearSlop;
+    if (CLengthSquared > k_allowedStretch * k_allowedStretch) {
+      var uX = CX / CLength;
+      var uY = CY / CLength;
+      var k = invMass1 + invMass2;
+      var m = 1 / k;
+      impulseX = m * ((-CX));
+      impulseY = m * ((-CY));
+      var k_beta = 0.5;
+      bA.m_sweep.c.x -= k_beta * invMass1 * impulseX;
+      bA.m_sweep.c.y -= k_beta * invMass1 * impulseY;
+      bB.m_sweep.c.x += k_beta * invMass2 * impulseX;
+      bB.m_sweep.c.y += k_beta * invMass2 * impulseY;
+      CX = bB.m_sweep.c.x + r2X - bA.m_sweep.c.x - r1X;
+      CY = bB.m_sweep.c.y + r2Y - bA.m_sweep.c.y - r1Y;
+    }
+    this.K1.col1.x = invMass1 + invMass2;
+    this.K1.col2.x = 0;
+    this.K1.col1.y = 0;
+    this.K1.col2.y = invMass1 + invMass2;
+    this.K2.col1.x = invI1 * r1Y * r1Y;
+    this.K2.col2.x = (-invI1 * r1X * r1Y);
+    this.K2.col1.y = (-invI1 * r1X * r1Y);
+    this.K2.col2.y = invI1 * r1X * r1X;
+    this.K3.col1.x = invI2 * r2Y * r2Y;
+    this.K3.col2.x = (-invI2 * r2X * r2Y);
+    this.K3.col1.y = (-invI2 * r2X * r2Y);
+    this.K3.col2.y = invI2 * r2X * r2X;
+    this.K.SetM(this.K1);
+    this.K.AddM(this.K2);
+    this.K.AddM(this.K3);
+    this.K.Solve(b2RevoluteJoint.tImpulse, (-CX), (-CY));
+    impulseX = b2RevoluteJoint.tImpulse.x;
+    impulseY = b2RevoluteJoint.tImpulse.y;
+    bA.m_sweep.c.x -= bA.m_invMass * impulseX;
+    bA.m_sweep.c.y -= bA.m_invMass * impulseY;
+    bA.m_sweep.a -= bA.m_invI * (r1X * impulseY - r1Y * impulseX);
+    bB.m_sweep.c.x += bB.m_invMass * impulseX;
+    bB.m_sweep.c.y += bB.m_invMass * impulseY;
+    bB.m_sweep.a += bB.m_invI * (r2X * impulseY - r2Y * impulseX);
+    bA.SynchronizeTransform();
+      bB.SynchronizeTransform();
     return positionError <= b2Settings.b2_linearSlop && angularError <= b2Settings.b2_angularSlop;
   },
 });
 
-var b2RevoluteJointDef =
-Box2D.Dynamics.Joints.b2RevoluteJointDef = Box2D.inherit({
+var b2RevoluteJointDef = Box2D.inherit({
   extends: b2JointDef,
   initialize: function() {
     b2JointDef.apply(this, arguments);
@@ -7784,8 +7686,7 @@ Box2D.Dynamics.Joints.b2RevoluteJointDef = Box2D.inherit({
   },
 });
 
-var b2WeldJoint =
-Box2D.Dynamics.Joints.b2WeldJoint = Box2D.inherit({
+var b2WeldJoint = Box2D.inherit({
   extends: b2Joint,
   initialize: function(def) {
     b2Joint.apply(this, arguments);
@@ -7952,8 +7853,7 @@ Box2D.Dynamics.Joints.b2WeldJoint = Box2D.inherit({
   },
 });
 
-var b2WeldJointDef =
-Box2D.Dynamics.Joints.b2WeldJointDef = Box2D.inherit({
+var b2WeldJointDef = Box2D.inherit({
   extends: b2JointDef,
   initialize: function() {
     b2JointDef.apply(this, arguments);
@@ -7971,8 +7871,7 @@ Box2D.Dynamics.Joints.b2WeldJointDef = Box2D.inherit({
   },
 });
 
-var b2LineJoint =
-Box2D.Dynamics.Joints.b2LineJoint = Box2D.inherit({
+var b2LineJoint = Box2D.inherit({
   extends: b2Joint,
   initialize: function() {
     b2Joint.apply(this, arguments);
@@ -8398,8 +8297,7 @@ b2LineJoint.prototype.b2LineJoint = function(def) {
 };
 */
 
-var b2LineJointDef =
-Box2D.Dynamics.Joints.b2LineJointDef = Box2D.inherit({
+var b2LineJointDef = Box2D.inherit({
   extends: b2JointDef,
   initialize: function() {
     b2JointDef.apply(this, arguments);
@@ -8430,8 +8328,7 @@ b2LineJointDef.prototype.b2LineJointDef = function () {
 }
 */
 
-var b2MouseJoint =
-Box2D.Dynamics.Joints.b2MouseJoint = Box2D.inherit({
+var b2MouseJoint = Box2D.inherit({
   extends: b2Joint,
   initialize: function(def) {
     b2Joint.apply(this, arguments);
@@ -8575,8 +8472,7 @@ Box2D.Dynamics.Joints.b2MouseJoint = Box2D.inherit({
   },
 });
 
-var b2MouseJointDef =
-Box2D.Dynamics.Joints.b2MouseJointDef = Box2D.inherit({
+var b2MouseJointDef = Box2D.inherit({
   extends: b2JointDef,
   initialize: function () {
     b2JointDef.call(this); // FIXME(slighltyoff): needed?
@@ -8588,11 +8484,11 @@ Box2D.Dynamics.Joints.b2MouseJointDef = Box2D.inherit({
   },
 });
 
-var b2PrismaticJoint =
-Box2D.Dynamics.Joints.b2PrismaticJoint = Box2D.inherit({
+var b2PrismaticJoint = Box2D.inherit({
   extends: b2Joint,
   initialize: function(def) {
     b2Joint.apply(this, arguments); // FIXME(slighltyoff): needed?
+    // FIXME(slightlyoff): too many props?
     this.m_localAnchor1 = new b2Vec2();
     this.m_localAnchor2 = new b2Vec2();
     this.m_localXAxis1 = new b2Vec2();
@@ -9000,8 +8896,7 @@ Box2D.Dynamics.Joints.b2PrismaticJoint = Box2D.inherit({
   },
 });
 
-var b2PrismaticJointDef =
-Box2D.Dynamics.Joints.b2PrismaticJointDef = Box2D.inherit({
+var b2PrismaticJointDef = Box2D.inherit({
   extends: b2JointDef,
   initialize: function() {
     b2JointDef.apply(this, arguments);
@@ -9028,8 +8923,7 @@ Box2D.Dynamics.Joints.b2PrismaticJointDef = Box2D.inherit({
   },
 });
 
-var b2PulleyJoint =
-Box2D.Dynamics.Joints.b2PulleyJoint = Box2D.inherit({
+var b2PulleyJoint = Box2D.inherit({
   extends: b2Joint,
   initialize: function(def) {
     b2Joint.apply(this, arguments);
@@ -9396,8 +9290,7 @@ Box2D.Dynamics.Joints.b2PulleyJoint = Box2D.inherit({
   },
 });
 
-var b2PulleyJointDef =
-Box2D.Dynamics.Joints.b2PulleyJointDef = Box2D.inherit({
+var b2PulleyJointDef = Box2D.inherit({
   initialize: function () {
     b2JointDef.apply(this, arguments);
     this.groundAnchorA = new b2Vec2();
@@ -9437,9 +9330,7 @@ Box2D.Dynamics.Joints.b2PulleyJointDef = Box2D.inherit({
   },
 });
 
-// var b2DebugDraw = Box2D.Dynamics.b2DebugDraw;
-var b2DebugDraw =
-Box2D.Dynamics.b2DebugDraw = Box2D.inherit({
+var b2DebugDraw = Box2D.inherit({
   initialize: function () {
     this.m_drawScale = 1;
     this.m_lineThickness = 1;
@@ -9601,6 +9492,100 @@ b2DebugDraw.prototype.DrawTransform = function (xf) {
   s.stroke();
 };
 
+// API Compat
+Box2D.Collision.b2WorldManifold = b2WorldManifold;
+Box2D.Collision.ClipVertex  = ClipVertex;
+Box2D.Collision.Features = Features;
+Box2D.Collision.Shapes.b2Shape = b2Shape;
+Box2D.Collision.Shapes.b2CircleShape = b2CircleShape;
+Box2D.Collision.Shapes.b2EdgeChainDef = b2EdgeChainDef;
+Box2D.Collision.Shapes.b2EdgeShape = b2EdgeShape;
+Box2D.Collision.Shapes.b2MassData = b2MassData;
+Box2D.Collision.Shapes.b2PolygonShape = b2PolygonShape;
+Box2D.Collision.b2AABB = b2AABB;
+Box2D.Collision.b2Bound = b2Bound;
+Box2D.Collision.b2BoundValues = b2BoundValues;
+Box2D.Collision.b2Collision = b2Collision;
+Box2D.Collision.b2ContactID = b2ContactID;
+Box2D.Collision.b2ContactPoint = b2ContactPoint;
+Box2D.Collision.b2Distance = b2Distance;
+Box2D.Collision.b2DistanceInput = b2DistanceInput;
+Box2D.Collision.b2DistanceOutput = b2DistanceOutput;
+Box2D.Collision.b2DistanceProxy = b2DistanceProxy;
+Box2D.Collision.b2DynamicTree = b2DynamicTree;
+Box2D.Collision.b2DynamicTreeBroadPhase = b2DynamicTreeBroadPhase;
+Box2D.Collision.b2DynamicTreeNode = b2DynamicTreeNode;
+Box2D.Collision.b2DynamicTreePair = b2DynamicTreePair;
+Box2D.Collision.b2Manifold = b2Manifold;
+Box2D.Collision.b2ManifoldPoint = b2ManifoldPoint;
+Box2D.Collision.b2Point = b2Point;
+Box2D.Collision.b2RayCastInput = b2RayCastInput;
+Box2D.Collision.b2RayCastOutput = b2RayCastOutput;
+Box2D.Collision.b2Segment = b2Segment;
+Box2D.Collision.b2SeparationFunction = b2SeparationFunction;
+Box2D.Collision.b2Simplex = b2Simplex;
+Box2D.Collision.b2SimplexCache = b2SimplexCache;
+Box2D.Collision.b2SimplexVertex = b2SimplexVertex;
+Box2D.Common.b2Color = b2Color;
+Box2D.Common.Math.b2Vec2 = b2Vec2;
+Box2D.Common.Math.b2Vec3 = b2Vec3;
+Box2D.Common.Math.b2Sweep = b2Sweep;
+Box2D.Common.Math.b2Mat22 = b2Mat22;
+Box2D.Common.Math.b2Mat33 = b2Mat33;
+Box2D.Common.Math.b2Transform = b2Transform;
+Box2D.Dynamics.b2Body = b2Body;
+Box2D.Dynamics.b2BodyDef = b2BodyDef;
+Box2D.Dynamics.b2ContactFilter = b2ContactFilter;
+Box2D.Dynamics.b2ContactImpulse = b2ContactImpulse;
+Box2D.Dynamics.b2ContactListener = b2ContactListener;
+Box2D.Dynamics.b2ContactManager = b2ContactManager;
+Box2D.Dynamics.b2DestructionListener = b2DestructionListener;
+Box2D.Dynamics.Contacts.b2Contact = b2Contact;
+Box2D.Dynamics.Contacts.b2ContactConstraint = b2ContactConstraint;
+Box2D.Dynamics.Contacts.b2CircleContact = b2CircleContact;
+Box2D.Dynamics.Contacts.b2ContactConstraintPoint = b2ContactConstraintPoint;
+Box2D.Dynamics.Contacts.b2ContactEdge = b2ContactEdge;
+Box2D.Dynamics.Contacts.b2ContactFactory = b2ContactFactory;
+Box2D.Dynamics.Contacts.b2ContactEdge = b2ContactEdge;
+Box2D.Dynamics.Contacts.b2ContactRegister = b2ContactRegister;
+Box2D.Dynamics.Contacts.b2ContactResult = b2ContactResult;
+Box2D.Dynamics.Contacts.b2ContactSolver = b2ContactSolver;
+Box2D.Dynamics.Contacts.b2EdgeAndCircleContact = b2EdgeAndCircleContact;
+Box2D.Dynamics.Contacts.b2NullContact = b2NullContact;
+Box2D.Dynamics.Contacts.b2PolyAndCircleContact = b2PolyAndCircleContact;
+Box2D.Dynamics.Contacts.b2PolyAndEdgeContact = b2PolyAndEdgeContact;
+Box2D.Dynamics.Contacts.b2PolygonContact = b2PolygonContact;
+Box2D.Dynamics.Contacts.b2PositionSolverManifold = b2PositionSolverManifold;
+Box2D.Dynamics.Controllers.b2BuoyancyController = b2BuoyancyController;
+Box2D.Dynamics.Controllers.b2ConstantAccelController = b2ConstantAccelController;
+Box2D.Dynamics.Controllers.b2Controller = b2Controller;
+Box2D.Dynamics.Controllers.b2ConstantForceController = b2ConstantForceController;
+Box2D.Dynamics.Controllers.b2ControllerEdge = b2ControllerEdge;
+Box2D.Dynamics.Controllers.b2GravityController = b2GravityController;
+Box2D.Dynamics.Controllers.b2TensorDampingController = b2TensorDampingController;
+Box2D.Dynamics.Joints.b2Joint = b2Joint;
+Box2D.Dynamics.Joints.b2DistanceJoint = b2DistanceJoint;
+Box2D.Dynamics.Joints.b2JointDef = b2JointDef;
+Box2D.Dynamics.Joints.b2DistanceJointDef = b2DistanceJointDef;
+Box2D.Dynamics.Joints.b2FrictionJoint = b2FrictionJoint;
+Box2D.Dynamics.Joints.b2FrictionJointDef = b2FrictionJointDef;
+Box2D.Dynamics.Joints.b2GearJoint = b2GearJoint;
+Box2D.Dynamics.Joints.b2GearJointDef = b2GearJointDef;
+Box2D.Dynamics.Joints.b2Jacobian = b2Jacobian;
+Box2D.Dynamics.Joints.b2JointEdge = b2JointEdge;
+Box2D.Dynamics.Joints.b2RevoluteJoint = b2RevoluteJoint;
+Box2D.Dynamics.Joints.b2RevoluteJointDef = b2RevoluteJointDef;
+Box2D.Dynamics.Joints.b2WeldJoint = b2WeldJoint;
+Box2D.Dynamics.Joints.b2WeldJointDef = b2WeldJointDef;
+Box2D.Dynamics.Joints.b2LineJoint = b2LineJoint;
+Box2D.Dynamics.Joints.b2LineJointDef = b2LineJointDef;
+Box2D.Dynamics.Joints.b2MouseJoint = b2MouseJoint;
+Box2D.Dynamics.Joints.b2MouseJointDef = b2MouseJointDef;
+Box2D.Dynamics.Joints.b2PrismaticJoint = b2PrismaticJoint;
+Box2D.Dynamics.Joints.b2PrismaticJointDef = b2PrismaticJointDef;
+Box2D.Dynamics.Joints.b2PulleyJoint = b2PulleyJoint;
+Box2D.Dynamics.Joints.b2PulleyJointDef = b2PulleyJointDef;
+Box2D.Dynamics.b2DebugDraw = b2DebugDraw;
 
 (function() {
   var col = Box2D.Collision.b2Collision;
