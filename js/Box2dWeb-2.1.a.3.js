@@ -2224,86 +2224,91 @@ var b2WorldManifold = Box2D.inherit({
       this.m_points[x] = new b2Vec2();
     }
   },
-  Initialize: function (manifold, xfA, radiusA, xfB, radiusB) {
+  _initialize_circles: function(manifold, xfA, radiusA, xfB, radiusB) {
+    var tMat = xfA.R;
+    var tVec = manifold.m_localPoint;
+    var pointAX = xfA.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+    var pointAY = xfA.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+    tMat = xfB.R;
+    tVec = manifold.m_points[0].m_localPoint;
+    var pointBX = xfB.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+    var pointBY = xfB.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+    var dX = pointBX - pointAX;
+    var dY = pointBY - pointAY;
+    var d2 = dX * dX + dY * dY;
+    if (d2 > Number.MIN_VALUE * Number.MIN_VALUE) {
+      var d = Math.sqrt(d2);
+      this.m_normal.x = dX / d;
+      this.m_normal.y = dY / d;
+    } else {
+      this.m_normal.x = 1;
+      this.m_normal.y = 0;
+    }
+    var cAX = pointAX + radiusA * this.m_normal.x;
+    var cAY = pointAY + radiusA * this.m_normal.y;
+    var cBX = pointBX - radiusB * this.m_normal.x;
+    var cBY = pointBY - radiusB * this.m_normal.y;
+    this.m_points[0].x = 0.5 * (cAX + cBX);
+    this.m_points[0].y = 0.5 * (cAY + cBY);
+  },
+  _initialize_faceA: function(manifold, xfA, radiusA, xfB, radiusB)  {
+    var tMat = xfA.R;
+    var tVec = manifold.m_localPlaneNormal;
+    var normalX = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+    var normalY = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+    tMat = xfA.R;
+    tVec = manifold.m_localPoint;
+    var planePointX = xfA.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+    var planePointY = xfA.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+    this.m_normal.x = normalX;
+    this.m_normal.y = normalY;
+    var clipPointX = 0;
+    var clipPointY = 0;
+    for (var i = 0; i < manifold.m_pointCount; i++) {
+      tMat = xfB.R;
+      tVec = manifold.m_points[i].m_localPoint;
+      clipPointX = xfB.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+      clipPointY = xfB.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+      this.m_points[i].x = clipPointX + 0.5 * (radiusA - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusB) * normalX;
+      this.m_points[i].y = clipPointY + 0.5 * (radiusA - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusB) * normalY;
+    }
+  },
+  _initialize_faceB: function(manifold, xfA, radiusA, xfB, radiusB) {
+    var tMat = xfB.R;
+    var tVec = manifold.m_localPlaneNormal;
+    var normalX = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+    var normalY = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+    tMat = xfB.R;
+    tVec = manifold.m_localPoint;
+    var planePointX = xfB.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+    var planePointY = xfB.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+    this.m_normal.x = (-normalX);
+    this.m_normal.y = (-normalY);
+    for (var i = 0; i < manifold.m_pointCount; i++) {
+      tMat = xfA.R;
+      tVec = manifold.m_points[i].m_localPoint;
+      clipPointX = xfA.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+      clipPointY = xfA.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+      this.m_points[i].x = clipPointX + 0.5 * (radiusB - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusA) * normalX;
+      this.m_points[i].y = clipPointY + 0.5 * (radiusB - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusA) * normalY;
+    }
+  },
+  Initialize: function(manifold, xfA, radiusA, xfB, radiusB) {
     if (radiusA === undefined) radiusA = 0;
     if (radiusB === undefined) radiusB = 0;
     if (manifold.m_pointCount == 0) { return; }
     var i = 0;
-    var tVec;
-    var tMat;
-    var normalX = 0;
-    var normalY = 0;
     var planePointX = 0;
     var planePointY = 0;
-    var clipPointX = 0;
-    var clipPointY = 0;
     switch (manifold.m_type) {
       case b2Manifold.e_circles:
-        tMat = xfA.R;
-        tVec = manifold.m_localPoint;
-        var pointAX = xfA.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-        var pointAY = xfA.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-        tMat = xfB.R;
-        tVec = manifold.m_points[0].m_localPoint;
-        var pointBX = xfB.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-        var pointBY = xfB.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-        var dX = pointBX - pointAX;
-        var dY = pointBY - pointAY;
-        var d2 = dX * dX + dY * dY;
-        if (d2 > Number.MIN_VALUE * Number.MIN_VALUE) {
-          var d = Math.sqrt(d2);
-          this.m_normal.x = dX / d;
-          this.m_normal.y = dY / d;
-        } else {
-          this.m_normal.x = 1;
-          this.m_normal.y = 0;
-        }
-        var cAX = pointAX + radiusA * this.m_normal.x;
-        var cAY = pointAY + radiusA * this.m_normal.y;
-        var cBX = pointBX - radiusB * this.m_normal.x;
-        var cBY = pointBY - radiusB * this.m_normal.y;
-        this.m_points[0].x = 0.5 * (cAX + cBX);
-        this.m_points[0].y = 0.5 * (cAY + cBY);
+        this._initialize_circles(manifold, xfA, radiusA, xfB, radiusB);
         break;
       case b2Manifold.e_faceA:
-        tMat = xfA.R;
-        tVec = manifold.m_localPlaneNormal;
-        normalX = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-        normalY = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-        tMat = xfA.R;
-        tVec = manifold.m_localPoint;
-        planePointX = xfA.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-        planePointY = xfA.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-        this.m_normal.x = normalX;
-        this.m_normal.y = normalY;
-        for (i = 0; i < manifold.m_pointCount; i++) {
-          tMat = xfB.R;
-          tVec = manifold.m_points[i].m_localPoint;
-          clipPointX = xfB.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-          clipPointY = xfB.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-          this.m_points[i].x = clipPointX + 0.5 * (radiusA - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusB) * normalX;
-          this.m_points[i].y = clipPointY + 0.5 * (radiusA - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusB) * normalY;
-        }
+        this._initialize_faceA(manifold, xfA, radiusA, xfB, radiusB);
         break;
       case b2Manifold.e_faceB:
-        tMat = xfB.R;
-        tVec = manifold.m_localPlaneNormal;
-        normalX = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-        normalY = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-        tMat = xfB.R;
-        tVec = manifold.m_localPoint;
-        planePointX = xfB.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-        planePointY = xfB.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-        this.m_normal.x = (-normalX);
-        this.m_normal.y = (-normalY);
-        for (i = 0; i < manifold.m_pointCount; i++) {
-          tMat = xfA.R;
-          tVec = manifold.m_points[i].m_localPoint;
-          clipPointX = xfA.position.x + tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-          clipPointY = xfA.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-          this.m_points[i].x = clipPointX + 0.5 * (radiusB - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusA) * normalX;
-          this.m_points[i].y = clipPointY + 0.5 * (radiusB - (clipPointX - planePointX) * normalX - (clipPointY - planePointY) * normalY - radiusA) * normalY;
-        }
+        this._initialize_faceB(manifold, xfA, radiusA, xfB, radiusB);
         break;
     }
   },
