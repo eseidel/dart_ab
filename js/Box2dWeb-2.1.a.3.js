@@ -1064,7 +1064,15 @@ b2Distance.Distance = function (output, cache, input) {
 };
 
 // FIXME: kill or extend!
-var b2DistanceInput = Box2D.Collision.b2DistanceInput = Box2D.inherit({});;
+var b2DistanceInput = Box2D.inherit({
+  initialize: function() {
+    this.proxyA = new b2DistanceProxy();
+    this.proxyB = new b2DistanceProxy();
+    this.transformA = null;
+    this.transformB = null;
+    this.useRadii = false;
+  }
+});;
 
 var b2DistanceOutput = Box2D.inherit({
   initialize: function() {
@@ -2112,7 +2120,8 @@ var b2SimplexVertex = Box2D.inherit({
 });
 
 var b2TimeOfImpact = {
-  TimeOfImpact: function (input) {
+  // FIXME(slightlyoff): too big!
+  TimeOfImpact: function(input) {
     ++b2TimeOfImpact.b2_toiCalls;
     var proxyA = input.proxyA;
     var proxyB = input.proxyB;
@@ -2126,15 +2135,18 @@ var b2TimeOfImpact = {
     var k_maxIterations = 1000;
     var iter = 0;
     var target = 0;
+    var rootIterCount = 0;
     b2TimeOfImpact.s_cache.count = 0;
     b2TimeOfImpact.s_distanceInput.useRadii = false;
-    for (;;) {
+
+    b2TimeOfImpact.s_distanceInput.proxyA = proxyA;
+    b2TimeOfImpact.s_distanceInput.proxyB = proxyB;
+    b2TimeOfImpact.s_distanceInput.transformA = b2TimeOfImpact.s_xfA;
+    b2TimeOfImpact.s_distanceInput.transformB = b2TimeOfImpact.s_xfB;
+
+    while(true) {
       sweepA.GetTransform(b2TimeOfImpact.s_xfA, alpha);
       sweepB.GetTransform(b2TimeOfImpact.s_xfB, alpha);
-      b2TimeOfImpact.s_distanceInput.proxyA = proxyA;
-      b2TimeOfImpact.s_distanceInput.proxyB = proxyB;
-      b2TimeOfImpact.s_distanceInput.transformA = b2TimeOfImpact.s_xfA;
-      b2TimeOfImpact.s_distanceInput.transformB = b2TimeOfImpact.s_xfB;
       b2Distance.Distance(
         b2TimeOfImpact.s_distanceOutput,
         b2TimeOfImpact.s_cache,
@@ -2144,8 +2156,14 @@ var b2TimeOfImpact = {
         alpha = 1;
         break;
       }
-      b2TimeOfImpact.s_fcn.Initialize(b2TimeOfImpact.s_cache, proxyA, b2TimeOfImpact.s_xfA, proxyB, b2TimeOfImpact.s_xfB);
-      var separation = b2TimeOfImpact.s_fcn.Evaluate(b2TimeOfImpact.s_xfA, b2TimeOfImpact.s_xfB);
+      b2TimeOfImpact.s_fcn.Initialize(
+          b2TimeOfImpact.s_cache,
+          proxyA,
+          b2TimeOfImpact.s_xfA,
+          proxyB,
+          b2TimeOfImpact.s_xfB);
+      var separation = b2TimeOfImpact.s_fcn.Evaluate(
+                          b2TimeOfImpact.s_xfA, b2TimeOfImpact.s_xfB);
       if (separation <= 0) {
         alpha = 1;
         break;
@@ -2164,49 +2182,52 @@ var b2TimeOfImpact = {
         }
         break;
       }
-      var newAlpha = alpha; {
-        var x1 = alpha;
-        var x2 = 1;
-        var f1 = separation;
-        sweepA.GetTransform(b2TimeOfImpact.s_xfA, x2);
-        sweepB.GetTransform(b2TimeOfImpact.s_xfB, x2);
-        var f2 = b2TimeOfImpact.s_fcn.Evaluate(b2TimeOfImpact.s_xfA, b2TimeOfImpact.s_xfB);
-        if (f2 >= target) {
-          alpha = 1;
+      var newAlpha = alpha;
+      var x1 = alpha;
+      var x2 = 1;
+      var f1 = separation;
+      sweepA.GetTransform(b2TimeOfImpact.s_xfA, x2);
+      sweepB.GetTransform(b2TimeOfImpact.s_xfB, x2);
+      var f2 = b2TimeOfImpact.s_fcn.Evaluate(
+                  b2TimeOfImpact.s_xfA, b2TimeOfImpact.s_xfB);
+      if (f2 >= target) {
+        alpha = 1;
+        break;
+      }
+      while(true) {
+        var x = 0;
+        if (rootIterCount & 1) {
+          x = x1 + (target - f1) * (x2 - x1) / (f2 - f1);
+        } else {
+          x = 0.5 * (x1 + x2);
+        }
+        sweepA.GetTransform(b2TimeOfImpact.s_xfA, x);
+        sweepB.GetTransform(b2TimeOfImpact.s_xfB, x);
+        var f = b2TimeOfImpact.s_fcn.Evaluate(
+                    b2TimeOfImpact.s_xfA, b2TimeOfImpact.s_xfB);
+
+        if (Math.abs(f - target) < 0.025 * tolerance) {
+          newAlpha = x;
           break;
         }
-        var rootIterCount = 0;
-        for (;;) {
-          var x = 0;
-          if (rootIterCount & 1) {
-            x = x1 + (target - f1) * (x2 - x1) / (f2 - f1);
-          }
-          else {
-            x = 0.5 * (x1 + x2);
-          }
-          sweepA.GetTransform(b2TimeOfImpact.s_xfA, x);
-          sweepB.GetTransform(b2TimeOfImpact.s_xfB, x);
-          var f = b2TimeOfImpact.s_fcn.Evaluate(b2TimeOfImpact.s_xfA, b2TimeOfImpact.s_xfB);
-          if (Math.abs(f - target) < 0.025 * tolerance) {
-            newAlpha = x;
-            break;
-          }
-          if (f > target) {
-            x1 = x;
-            f1 = f;
-          }
-          else {
-            x2 = x;
-            f2 = f;
-          }
-          rootIterCount++;
-          b2TimeOfImpact.b2_toiRootIters++;
-          if (rootIterCount == 50) {
-            break;
-          }
+
+        if (f > target) {
+          x1 = x;
+          f1 = f;
+        } else {
+          x2 = x;
+          f2 = f;
         }
-        b2TimeOfImpact.b2_toiMaxRootIters = Math.max(b2TimeOfImpact.b2_toiMaxRootIters, rootIterCount);
+
+        rootIterCount++;
+        b2TimeOfImpact.b2_toiRootIters++;
+
+        if (rootIterCount == 50) {
+          break;
+        }
       }
+      b2TimeOfImpact.b2_toiMaxRootIters = Math.max(
+                            b2TimeOfImpact.b2_toiMaxRootIters, rootIterCount);
       if (newAlpha < (1 + 100 * Number.MIN_VALUE) * alpha) {
         break;
       }
@@ -2397,9 +2418,7 @@ b2Shape.e_startsInsideCollide = -1;
 
 b2Shape.TestOverlap = function (shape1, transform1, shape2, transform2) {
   var input = new b2DistanceInput();
-  input.proxyA = new b2DistanceProxy();
   input.proxyA.Set(shape1);
-  input.proxyB = new b2DistanceProxy();
   input.proxyB.Set(shape2);
   input.transformA = transform1;
   input.transformB = transform2;
