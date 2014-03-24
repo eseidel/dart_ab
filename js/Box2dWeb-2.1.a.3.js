@@ -1368,7 +1368,7 @@ var b2DynamicTreeBroadPhase =
 Box2D.Collision.b2DynamicTreeBroadPhase = Box2D.inherit({
   initialize: function() {
     this.m_tree = new b2DynamicTree();
-    this.m_moveBuffer = new Array();
+    this.m_moveBuffer = [];
     this.m_pairBuffer = new Array();
     this.m_pairCount = 0;
   },
@@ -1445,11 +1445,31 @@ Box2D.Collision.b2DynamicTreeBroadPhase = Box2D.inherit({
     return true;
   },
   // FIXME(slighltyoff): HOT!
-  UpdatePairs: function (callback) {
-    var __this = this;
+  UpdatePairs: function(callback) {
+    var _this = this;
     this.m_pairCount = 0;
-    var i = 0, queryProxy, QueryCallback;
+    // var i = 0, queryProxy, QueryCallback;
     var l = this.m_moveBuffer.length;
+    var mt = this.m_tree;
+     // FIXME(slightlyoff): too much alloc!
+     // this._queryCallback(callback, this.m_moveBuffer[i]);
+    this.m_moveBuffer.forEach(function(queryProxy) {
+       mt.Query(
+         function(proxy) {
+           if (proxy == queryProxy) return true;
+           if (_this.m_pairCount == _this.m_pairBuffer.length) {
+             _this.m_pairBuffer[_this.m_pairCount] = new b2DynamicTreePair();
+           }
+           var pair = _this.m_pairBuffer[_this.m_pairCount];
+           pair.proxyA = proxy < queryProxy ? proxy : queryProxy;
+           pair.proxyB = proxy >= queryProxy ? proxy : queryProxy;
+           ++_this.m_pairCount;
+           return true;
+         },
+         queryProxy.aabb
+       );
+    });
+    /*
     for (i = 0; i < l; ++i) {
        queryProxy = this.m_moveBuffer[i];
 
@@ -1469,13 +1489,14 @@ Box2D.Collision.b2DynamicTreeBroadPhase = Box2D.inherit({
        // this._queryCallback(callback, this.m_moveBuffer[i]);
        this.m_tree.Query(QueryCallback, this.m_moveBuffer[i].aabb);
     }
+    */
     this.m_moveBuffer.length = 0;
-    for (var i = 0; i < __this.m_pairCount;) {
-      var primaryPair = __this.m_pairBuffer[i];
+    for (var i = 0; i < _this.m_pairCount;) {
+      var primaryPair = _this.m_pairBuffer[i];
       callback(primaryPair.proxyA.userData, primaryPair.proxyB.userData);
       ++i;
-      while (i < __this.m_pairCount) {
-        var pair = __this.m_pairBuffer[i];
+      while (i < _this.m_pairCount) {
+        var pair = _this.m_pairBuffer[i];
          if (pair.proxyA != primaryPair.proxyA ||
              pair.proxyB != primaryPair.proxyB) {
            break;
@@ -1496,7 +1517,7 @@ Box2D.Collision.b2DynamicTreeBroadPhase = Box2D.inherit({
     this.m_tree.Rebalance(iterations);
   },
   BufferMove: function (proxy) {
-    this.m_moveBuffer[this.m_moveBuffer.length] = proxy;
+    this.m_moveBuffer.push(proxy);
   },
   UnBufferMove: function (proxy) {
     var i = this.m_moveBuffer.indexOf(proxy);
@@ -1534,7 +1555,7 @@ var b2Manifold =
 Box2D.Collision.b2Manifold = Box2D.inherit({
   initialize: function() {
     this.m_pointCount = 0;
-    this.m_points = new Array(b2Settings.b2_maxManifoldPoints);
+    this.m_points = [];
     for (var i = 0; i < b2Settings.b2_maxManifoldPoints; i++) {
       this.m_points[i] = new b2ManifoldPoint();
     }
@@ -2756,7 +2777,7 @@ Box2D.Collision.Shapes.b2PolygonShape = Box2D.inherit({
   },
   SetAsArray: function(vertices, vertexCount) {
     if (vertexCount === undefined) vertexCount = 0;
-    var v = new Array();
+    var v = [];
     var i = 0, tVec;
     for (i = 0; i < vertices.length; ++i) {
       tVec = vertices[i];
@@ -4423,28 +4444,22 @@ Box2D.Dynamics.b2FixtureDef = Box2D.inherit({
 var b2Island =
 Box2D.Dynamics.b2Island = Box2D.inherit({
   initialize: function () {
-    this.m_bodies = new Array();
-    this.m_contacts = new Array();
-    this.m_joints = new Array();
+    this.Initialize();
   },
 
   Initialize: function(bodyCapacity, contactCapacity, jointCapacity, allocator, listener, contactSolver) {
-    if (bodyCapacity === undefined) bodyCapacity = 0;
-    if (contactCapacity === undefined) contactCapacity = 0;
-    if (jointCapacity === undefined) jointCapacity = 0;
-    var i = 0;
-    this.m_bodyCapacity = bodyCapacity;
-    this.m_contactCapacity = contactCapacity;
-    this.m_jointCapacity = jointCapacity;
     this.m_bodyCount = 0;
     this.m_contactCount = 0;
     this.m_jointCount = 0;
     this.m_allocator = allocator;
     this.m_listener = listener;
     this.m_contactSolver = contactSolver;
-    this.m_bodies.length = bodyCapacity;
-    this.m_contacts.length = contactCapacity;
-    this.m_joints.length = jointCapacity;
+    this.m_bodies = new Array(bodyCapacity||0);
+    this.m_contacts = new Array(contactCapacity||0);
+    this.m_joints = new Array(contactCapacity||0);
+    this.m_bodyCapacity = this.m_bodies.length;
+    this.m_contactCapacity = this.m_contacts.length;
+    this.m_jointCapacity = this.m_joints.length;
   },
   Clear: function() {
     this.m_bodyCount = 0;
@@ -5391,8 +5406,7 @@ Box2D.Dynamics.b2World = Box2D.inherit({
       subStep.positionIterations = step.positionIterations;
       island.SolveTOI(subStep);
       var i = 0;
-      for (i = 0;
-      i < island.m_bodyCount; ++i) {
+      for (i = 0; i < island.m_bodyCount; ++i) {
         b = island.m_bodies[i];
         b.m_flags &= ~b2Body.e_islandFlag;
         if (b.IsAwake() == false) {
@@ -5402,18 +5416,15 @@ Box2D.Dynamics.b2World = Box2D.inherit({
           continue;
         }
         b.SynchronizeFixtures();
-        for (cEdge = b.m_contactList;
-        cEdge; cEdge = cEdge.next) {
+        for (cEdge = b.m_contactList; cEdge; cEdge = cEdge.next) {
           cEdge.contact.m_flags &= ~b2Contact.e_toiFlag;
         }
       }
-      for (i = 0;
-      i < island.m_contactCount; ++i) {
+      for (i = 0; i < island.m_contactCount; ++i) {
         c = island.m_contacts[i];
         c.m_flags &= ~ (b2Contact.e_toiFlag | b2Contact.e_islandFlag);
       }
-      for (i = 0;
-      i < island.m_jointCount; ++i) {
+      for (i = 0; i < island.m_jointCount; ++i) {
         j = island.m_joints[i];
         j.m_islandFlag = false;
       }
@@ -5431,60 +5442,57 @@ Box2D.Dynamics.b2World = Box2D.inherit({
     var p2 = joint.GetAnchorB();
     var color = b2World.s_jointColor;
     switch (joint.m_type) {
-    case b2Joint.e_distanceJoint:
-      this.m_debugDraw.DrawSegment(p1, p2, color);
-      break;
-    case b2Joint.e_pulleyJoint:
-      {
-        var pulley = ((joint instanceof b2PulleyJoint ? joint : null));
-        var s1 = pulley.GetGroundAnchorA();
-        var s2 = pulley.GetGroundAnchorB();
-        this.m_debugDraw.DrawSegment(s1, p1, color);
-        this.m_debugDraw.DrawSegment(s2, p2, color);
-        this.m_debugDraw.DrawSegment(s1, s2, color);
-      }
-      break;
-    case b2Joint.e_mouseJoint:
-      this.m_debugDraw.DrawSegment(p1, p2, color);
-      break;
-    default:
-      if (b1 != this.m_groundBody) this.m_debugDraw.DrawSegment(x1, p1, color);
-      this.m_debugDraw.DrawSegment(p1, p2, color);
-      if (b2 != this.m_groundBody) this.m_debugDraw.DrawSegment(x2, p2, color);
+      case b2Joint.e_distanceJoint:
+        this.m_debugDraw.DrawSegment(p1, p2, color);
+        break;
+      case b2Joint.e_pulleyJoint:
+          var s1 = joint.GetGroundAnchorA();
+          var s2 = joint.GetGroundAnchorB();
+          this.m_debugDraw.DrawSegment(s1, p1, color);
+          this.m_debugDraw.DrawSegment(s2, p2, color);
+          this.m_debugDraw.DrawSegment(s1, s2, color);
+        break;
+      case b2Joint.e_mouseJoint:
+        this.m_debugDraw.DrawSegment(p1, p2, color);
+        break;
+      default:
+        if (b1 != this.m_groundBody) {
+          this.m_debugDraw.DrawSegment(x1, p1, color);
+        }
+        this.m_debugDraw.DrawSegment(p1, p2, color);
+        if (b2 != this.m_groundBody) {
+          this.m_debugDraw.DrawSegment(x2, p2, color);
+        }
     }
   },
   DrawShape: function(shape, xf, color) {
     switch (shape.m_type) {
-    case b2Shape.e_circleShape:
-      {
+      case b2Shape.e_circleShape:
         var circle = ((shape instanceof b2CircleShape ? shape : null));
         var center = b2Math.MulX(xf, circle.m_p);
         var radius = circle.m_radius;
         var axis = xf.R.col1;
         this.m_debugDraw.DrawSolidCircle(center, radius, axis, color);
-      }
-      break;
-    case b2Shape.e_polygonShape:
-      {
+        // FIXME(slightlyoff): DrawCircle is much faster.
+        // this.m_debugDraw.DrawCircle(center, radius, color);
+        break;
+      case b2Shape.e_polygonShape:
         var i = 0;
-        var poly = ((shape instanceof b2PolygonShape ? shape : null));
-        var vertexCount = poly.vertexCount;
-        var localVertices = poly.GetVertices();
-        var vertices = new Array(vertexCount);
-        for (i = 0;
-        i < vertexCount; ++i) {
-          vertices[i] = b2Math.MulX(xf, localVertices[i]);
+        var vertexCount = shape.vertexCount;
+        var localVertices = shape.GetVertices();
+        var vertices = [];
+        for (i = 0; i < vertexCount; ++i) {
+          vertices.push(b2Math.MulX(xf, localVertices[i]));
         }
         this.m_debugDraw.DrawSolidPolygon(vertices, vertexCount, color);
+        break;
+      case b2Shape.e_edgeShape:
+        this.m_debugDraw.DrawSegment(
+          b2Math.MulX(xf, shape.GetVertex1()),
+          b2Math.MulX(xf, shape.GetVertex2()),
+          color);
+        break;
       }
-      break;
-    case b2Shape.e_edgeShape:
-      {
-        var edge = (shape instanceof b2EdgeShape ? shape : null);
-        this.m_debugDraw.DrawSegment(b2Math.MulX(xf, edge.GetVertex1()), b2Math.MulX(xf, edge.GetVertex2()), color);
-      }
-      break;
-    }
   },
 });
 
@@ -9436,15 +9444,14 @@ Box2D.Dynamics.b2DebugDraw = Box2D.inherit({
     this.m_drawScale = 1;
     this.m_lineThickness = 1;
     this.m_alpha = 1;
-    this.m_fillAlpha = 1;
+    this.m_fillAlpha = 1; // 0.6;
     this.m_xformScale = 1;
-    var __this = this;
     //#WORKAROUND
     this.m_sprite = {
       graphics: {
         clear: function () {
-          __this.m_ctx.clearRect(0, 0, __this.m_ctx.canvas.width, __this.m_ctx.canvas.height)
-        }
+          this.m_ctx.clearRect(0, 0, this.m_ctx.canvas.width, this.m_ctx.canvas.height)
+        }.bind(this)
       }
     };
   },
