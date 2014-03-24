@@ -1070,6 +1070,8 @@ var b2DistanceOutput = Box2D.inherit({
   initialize: function() {
     this.pointA = new b2Vec2();
     this.pointB = new b2Vec2();
+    this.distance = 0;
+    this.iterations = 0;
   },
 });
 
@@ -2133,7 +2135,11 @@ var b2TimeOfImpact = {
       b2TimeOfImpact.s_distanceInput.proxyB = proxyB;
       b2TimeOfImpact.s_distanceInput.transformA = b2TimeOfImpact.s_xfA;
       b2TimeOfImpact.s_distanceInput.transformB = b2TimeOfImpact.s_xfB;
-      b2Distance.Distance(b2TimeOfImpact.s_distanceOutput, b2TimeOfImpact.s_cache, b2TimeOfImpact.s_distanceInput);
+      b2Distance.Distance(
+        b2TimeOfImpact.s_distanceOutput,
+        b2TimeOfImpact.s_cache,
+        b2TimeOfImpact.s_distanceInput
+      );
       if (b2TimeOfImpact.s_distanceOutput.distance <= 0) {
         alpha = 1;
         break;
