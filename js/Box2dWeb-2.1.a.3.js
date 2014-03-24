@@ -2284,6 +2284,8 @@ var b2WorldManifold = Box2D.inherit({
     var planePointY = xfB.position.y + tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
     this.m_normal.x = (-normalX);
     this.m_normal.y = (-normalY);
+    var clipPointX = 0;
+    var clipPointY = 0;
     for (var i = 0; i < manifold.m_pointCount; i++) {
       tMat = xfA.R;
       tVec = manifold.m_points[i].m_localPoint;
@@ -2297,9 +2299,6 @@ var b2WorldManifold = Box2D.inherit({
     if (radiusA === undefined) radiusA = 0;
     if (radiusB === undefined) radiusB = 0;
     if (manifold.m_pointCount == 0) { return; }
-    var i = 0;
-    var planePointX = 0;
-    var planePointY = 0;
     switch (manifold.m_type) {
       case b2Manifold.e_circles:
         this._initialize_circles(manifold, xfA, radiusA, xfB, radiusB);
