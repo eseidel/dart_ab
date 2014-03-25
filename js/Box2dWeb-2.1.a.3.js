@@ -4248,8 +4248,7 @@ var b2DestructionListener = Box2D.inherit({
   SayGoodbyeFixture: function(fixture) {},
 });
 
-var b2FilterData =
-Box2D.Dynamics.b2FilterData = Box2D.inherit({
+var b2FilterData = Box2D.inherit({
   initialize: function() {
     this.categoryBits = 0x0001;
     this.maskBits = 0xFFFF;
@@ -4264,8 +4263,7 @@ Box2D.Dynamics.b2FilterData = Box2D.inherit({
   },
 });
 
-var b2Fixture =
-Box2D.Dynamics.b2Fixture = Box2D.inherit({
+var b2Fixture = Box2D.inherit({
   initialize: function() {
     this.m_filter = new b2FilterData();
     this.m_aabb = new b2AABB();
@@ -4400,8 +4398,7 @@ Box2D.Dynamics.b2Fixture = Box2D.inherit({
   },
 });
 
-var b2FixtureDef =
-Box2D.Dynamics.b2FixtureDef = Box2D.inherit({
+var b2FixtureDef = Box2D.inherit({
   initialize: function() {
     this.filter = new b2FilterData();
     this.shape = null;
@@ -4416,8 +4413,7 @@ Box2D.Dynamics.b2FixtureDef = Box2D.inherit({
   },
 });
 
-var b2Island =
-Box2D.Dynamics.b2Island = Box2D.inherit({
+var b2Island = Box2D.inherit({
   initialize: function () {
     this.Initialize();
   },
@@ -4624,9 +4620,13 @@ Box2D.Dynamics.b2Island = Box2D.inherit({
   },
 });
 
-var b2TimeStep =
-Box2D.Dynamics.b2TimeStep = Box2D.inherit({
-  initialize: function () {
+var b2TimeStep = Box2D.inherit({
+  initialize: function() {
+    this.dt = null;
+    this.inv_dt = null;
+    this.positionIterations = 0;
+    this.velocityIterations = 0;
+    this.warmStarting = false;
   },
   Set: function (step) {
     this.dt = step.dt;
@@ -4637,8 +4637,7 @@ Box2D.Dynamics.b2TimeStep = Box2D.inherit({
   },
 });
 
-var b2World =
-Box2D.Dynamics.b2World = Box2D.inherit({
+var b2World = Box2D.inherit({
   initialize: function (gravity, doSleep) {
     this.s_stack = new Array();
     this.m_contactManager = new b2ContactManager();
@@ -9613,6 +9612,12 @@ Box2D.Dynamics.Joints.b2PrismaticJointDef = b2PrismaticJointDef;
 Box2D.Dynamics.Joints.b2PulleyJoint = b2PulleyJoint;
 Box2D.Dynamics.Joints.b2PulleyJointDef = b2PulleyJointDef;
 Box2D.Dynamics.b2DebugDraw = b2DebugDraw;
+Box2D.Dynamics.b2FilterData = b2FilterData;
+Box2D.Dynamics.b2Fixture = b2Fixture;
+Box2D.Dynamics.b2FixtureDef = b2FixtureDef;
+Box2D.Dynamics.b2Island = b2Island;
+Box2D.Dynamics.b2TimeStep = b2TimeStep;
+Box2D.Dynamics.b2World = b2World;
 
 (function() {
   var col = Box2D.Collision.b2Collision;
