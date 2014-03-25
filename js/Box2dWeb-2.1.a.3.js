@@ -673,11 +673,8 @@ b2Collision.FindIncidentEdge = function (c, poly1, xf1, edge1, poly2, xf2) {
    tClip.id.features.incidentVertex = 1;
 };
 
-b2Collision.MakeClipPointVector = function () {
-  return [
-    new ClipVertex(),
-    new ClipVertex()
-  ];
+b2Collision.MakeClipPointVector = function() {
+  return [ new ClipVertex(), new ClipVertex() ];
 };
 
 b2Collision.CollidePolygons = function (manifold, polyA, xfA, polyB, xfB) {
@@ -785,8 +782,8 @@ b2Collision.CollidePolygons = function (manifold, polyA, xfA, polyB, xfB) {
          tY = cv.v.y - xf2.position.y;
          cp.m_localPoint.x = (tX * tMat.col1.x + tY * tMat.col1.y);
          cp.m_localPoint.y = (tX * tMat.col2.x + tY * tMat.col2.y);
-         cp.m_id.Set(cv.id);
-         cp.m_id.features.flip = flip;
+         cp.id.Set(cv.id);
+         cp.id.features.flip = flip;
          ++pointCount;
       }
    }
@@ -815,7 +812,7 @@ b2Collision.CollideCircles = function (manifold, circle1, xf1, circle2, xf2) {
    manifold.m_localPlaneNormal.SetZero();
    manifold.m_pointCount = 1;
    manifold.m_points[0].m_localPoint.SetV(circle2.m_p);
-   manifold.m_points[0].m_id.key = 0;
+   manifold.m_points[0].id.key = 0;
 };
 
 b2Collision.CollidePolygonAndCircle = function(manifold, polygon, xf1, circle, xf2) {
@@ -868,7 +865,7 @@ b2Collision.CollidePolygonAndCircle = function(manifold, polygon, xf1, circle, x
      manifold.m_localPoint.x = 0.5 * (v1.x + v2.x);
      manifold.m_localPoint.y = 0.5 * (v1.y + v2.y);
      manifold.m_points[0].m_localPoint.SetV(circle.m_p);
-     manifold.m_points[0].m_id.key = 0;
+     manifold.m_points[0].id.key = 0;
      return;
   }
   var u1 = (cLocalX - v1.x) * (v2.x - v1.x) +
@@ -887,7 +884,7 @@ b2Collision.CollidePolygonAndCircle = function(manifold, polygon, xf1, circle, x
     manifold.m_localPlaneNormal.Normalize();
     manifold.m_localPoint.SetV(v1);
     manifold.m_points[0].m_localPoint.SetV(circle.m_p);
-    manifold.m_points[0].m_id.key = 0;
+    manifold.m_points[0].id.key = 0;
   } else if (u2 <= 0) {
     if ((cLocalX - v2.x) * (cLocalX - v2.x) +
         (cLocalY - v2.y) * (cLocalY - v2.y) > radius * radius) {
@@ -900,7 +897,7 @@ b2Collision.CollidePolygonAndCircle = function(manifold, polygon, xf1, circle, x
     manifold.m_localPlaneNormal.Normalize();
     manifold.m_localPoint.SetV(v2);
     manifold.m_points[0].m_localPoint.SetV(circle.m_p);
-    manifold.m_points[0].m_id.key = 0;
+    manifold.m_points[0].id.key = 0;
   } else {
     var faceCenterX = 0.5 * (v1.x + v2.x);
     var faceCenterY = 0.5 * (v1.y + v2.y);
@@ -913,7 +910,7 @@ b2Collision.CollidePolygonAndCircle = function(manifold, polygon, xf1, circle, x
     manifold.m_localPlaneNormal.Normalize();
     manifold.m_localPoint.Set(faceCenterX, faceCenterY);
     manifold.m_points[0].m_localPoint.SetV(circle.m_p);
-    manifold.m_points[0].m_id.key = 0;
+    manifold.m_points[0].id.key = 0;
   }
 };
 
@@ -934,9 +931,9 @@ b2Collision.TestOverlap = function (a, b) {
 var b2ContactID = Box2D.inherit({
   initialize: function() {
     this.features = new Features();
-    this.features._m_id = this;
+    this.features.id = this;
   },
-  Set: function (id) {
+  Set: function(id) {
     this.key = id._key;
   },
   Copy: function () {
@@ -948,8 +945,7 @@ var b2ContactID = Box2D.inherit({
     return this._key;
   },
   set key(value) {
-    if (value === undefined) value = 0;
-    this._key = value;
+    this._key = value || 0;
     this.features._referenceEdge = this._key & 0x000000ff;
     this.features._incidentEdge = ((this._key & 0x0000ff00) >> 8) & 0x000000ff;
     this.features._incidentVertex =
@@ -1579,20 +1575,20 @@ var b2Manifold = Box2D.inherit({
 var b2ManifoldPoint = Box2D.inherit({
   initialize: function() {
     this.m_localPoint = new b2Vec2();
-    this.m_id = new b2ContactID();
+    this.id = new b2ContactID();
     this.Reset();
   },
   Reset: function () {
     this.m_localPoint.SetZero();
     this.m_normalImpulse = 0;
     this.m_tangentImpulse = 0;
-    this.m_id.key = 0;
+    this.id.key = 0;
   },
   Set: function (m) {
     this.m_localPoint.SetV(m.m_localPoint);
     this.m_normalImpulse = m.m_normalImpulse;
     this.m_tangentImpulse = m.m_tangentImpulse;
-    this.m_id.Set(m.m_id);
+    this.id.Set(m.id);
   }
 });
 
@@ -2357,7 +2353,7 @@ var Features = Box2D.inherit({
     this._incidentEdge = null;
     this._incidentVertex = null;
     this._flip = null;
-    this._m_id = null;
+    this.id = null;
   },
   get referenceEdge() {
     return this._referenceEdge;
@@ -2365,7 +2361,7 @@ var Features = Box2D.inherit({
   set referenceEdge(value) {
     if (value === undefined) value = 0;
     this._referenceEdge = value;
-    this._m_id._key = (this._m_id._key & 0xffffff00) | (this._referenceEdge & 0x000000ff);
+    this.id._key = (this.id._key & 0xffffff00) | (this._referenceEdge & 0x000000ff);
   },
   get incidentEdge() {
     return this._incidentEdge;
@@ -2373,7 +2369,7 @@ var Features = Box2D.inherit({
   set incidentEdge(value) {
     if (value === undefined) value = 0;
     this._incidentEdge = value;
-    this._m_id._key = (this._m_id._key & 0xffff00ff) | ((this._incidentEdge << 8) & 0x0000ff00);
+    this.id._key = (this.id._key & 0xffff00ff) | ((this._incidentEdge << 8) & 0x0000ff00);
   },
   get incidentVertex() {
     return this._incidentVertex;
@@ -2381,7 +2377,7 @@ var Features = Box2D.inherit({
   set incidentVertex(value) {
     if (value === undefined) value = 0;
     this._incidentVertex = value;
-    this._m_id._key = (this._m_id._key & 0xff00ffff) | ((this._incidentVertex << 16) & 0x00ff0000);
+    this.id._key = (this.id._key & 0xff00ffff) | ((this._incidentVertex << 16) & 0x00ff0000);
   },
   get flip() {
     return this._flip;
@@ -2389,7 +2385,7 @@ var Features = Box2D.inherit({
   set flip(value) {
     if (value === undefined) value = 0;
     this._flip = value;
-    this._m_id._key = (this._m_id._key & 0x00ffffff) | ((this._flip << 24) & 0xff000000);
+    this.id._key = (this.id._key & 0x00ffffff) | ((this._flip << 24) & 0xff000000);
   },
 });
 
@@ -5548,6 +5544,50 @@ var b2Contact = Box2D.inherit({
     this.m_nodeB.next = null;
     this.m_nodeB.other = null;
   },
+  _update_sensor: function(aabbOverlap, bodyA, bodyB) {
+    var touching = false;
+    if (aabbOverlap) {
+      var shapeA = this.m_fixtureA.GetShape();
+      var shapeB = this.m_fixtureB.GetShape();
+      touching = b2Shape.TestOverlap(shapeA, bodyA.GetTransform(),
+                                     shapeB, bodyB.GetTransform());
+    }
+    this.m_manifold.m_pointCount = 0;
+    return touching;
+  },
+  _update_non_sensor: function(aabbOverlap, bodyA, bodyB, wasTouching) {
+    var touching = false;
+    if (bodyA.GetType() != b2Body.b2_dynamicBody || bodyA.IsBullet() || bodyB.GetType() != b2Body.b2_dynamicBody || bodyB.IsBullet()) {
+      this.m_flags |= b2Contact.e_continuousFlag;
+    } else {
+      this.m_flags &= ~b2Contact.e_continuousFlag;
+    }
+    if (aabbOverlap) {
+      this.Evaluate();
+      touching = this.m_manifold.m_pointCount > 0;
+      for (var i = 0; i < this.m_manifold.m_pointCount; ++i) {
+        var mp2 = this.m_manifold.m_points[i];
+        mp2.m_normalImpulse = 0;
+        mp2.m_tangentImpulse = 0;
+        var id2 = mp2.id;
+        for (var j = 0; j < this.m_oldManifold.m_pointCount; ++j) {
+          var mp1 = this.m_oldManifold.m_points[j];
+          if (mp1.id.key == id2.key) {
+            mp2.m_normalImpulse = mp1.m_normalImpulse;
+            mp2.m_tangentImpulse = mp1.m_tangentImpulse;
+            break;
+          }
+        }
+      }
+    } else {
+      this.m_manifold.m_pointCount = 0;
+    }
+    if (touching != wasTouching) {
+      bodyA.SetAwake(true);
+      bodyB.SetAwake(true);
+    }
+    return touching;
+  },
   Update: function(listener) {
     var tManifold = this.m_oldManifold;
     this.m_oldManifold = this.m_manifold;
@@ -5559,44 +5599,9 @@ var b2Contact = Box2D.inherit({
     var bodyB = this.m_fixtureB.m_body;
     var aabbOverlap = this.m_fixtureA.m_aabb.TestOverlap(this.m_fixtureB.m_aabb);
     if (this.m_flags & b2Contact.e_sensorFlag) {
-      if (aabbOverlap) {
-        var shapeA = this.m_fixtureA.GetShape();
-        var shapeB = this.m_fixtureB.GetShape();
-        var xfA = bodyA.GetTransform();
-        var xfB = bodyB.GetTransform();
-        touching = b2Shape.TestOverlap(shapeA, xfA, shapeB, xfB);
-      }
-      this.m_manifold.m_pointCount = 0;
+      touching = this._update_sensor(aabbOverlap, bodyA, bodyB);
     } else {
-      if (bodyA.GetType() != b2Body.b2_dynamicBody || bodyA.IsBullet() || bodyB.GetType() != b2Body.b2_dynamicBody || bodyB.IsBullet()) {
-        this.m_flags |= b2Contact.e_continuousFlag;
-      } else {
-        this.m_flags &= ~b2Contact.e_continuousFlag;
-      }
-      if (aabbOverlap) {
-        this.Evaluate();
-        touching = this.m_manifold.m_pointCount > 0;
-        for (var i = 0; i < this.m_manifold.m_pointCount; ++i) {
-          var mp2 = this.m_manifold.m_points[i];
-          mp2.m_normalImpulse = 0;
-          mp2.m_tangentImpulse = 0;
-          var id2 = mp2.m_id;
-          for (var j = 0; j < this.m_oldManifold.m_pointCount; ++j) {
-            var mp1 = this.m_oldManifold.m_points[j];
-            if (mp1.m_id.key == id2.key) {
-              mp2.m_normalImpulse = mp1.m_normalImpulse;
-              mp2.m_tangentImpulse = mp1.m_tangentImpulse;
-              break;
-            }
-          }
-        }
-      } else {
-        this.m_manifold.m_pointCount = 0;
-      }
-      if (touching != wasTouching) {
-        bodyA.SetAwake(true);
-        bodyB.SetAwake(true);
-      }
+      touching = this._update_non_sensor(aabbOverlap, bodyA, bodyB, wasTouching);
     }
     if (touching) {
       this.m_flags |= b2Contact.e_touchingFlag;
