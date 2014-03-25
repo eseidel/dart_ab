@@ -94,7 +94,7 @@ function Demo(name, gravity) {
   /** Microseconds for world step update */
   //int elapsedUs;
 
-  this.elapsedUs = null;
+  this.elapsedUs = 0;
 
   /** HTML element used to display the world step time */
   //Element worldStepTime;
@@ -183,6 +183,6 @@ Demo.prototype.initializeAnimation = function() {
 
     window.setInterval(function() {
       if (this.elapsedUs == null) return;
-      this.worldStepTime.innerHTML = (this.elapsedUs / 1000) + " ms";
-    }.bind(this), 200);
+      this.worldStepTime.innerHTML = Number(this.elapsedUs / 1000).toFixed(3) + " ms";
+    }.bind(this), 100);
   }

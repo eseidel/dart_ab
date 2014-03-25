@@ -135,7 +135,7 @@ MixerTest.prototype.step = function(timeStamp) {
 
   //assert(_stepTimes.length <= _QUEUE_SIZE);
 
-  var avgframe = null;
+  var avgframe = 0;
   if (this._stepTimes.length > 0) {
     avgframe = this._stepTimeRunningAverage / this._stepTimes.length;
     if (avgframe < 17) {

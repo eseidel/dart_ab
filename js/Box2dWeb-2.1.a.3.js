@@ -4988,7 +4988,9 @@ Box2D.Dynamics.b2World = Box2D.inherit({
     }
     if (flags & b2DebugDraw.e_pairBit) {
       color.Set(0.3, 0.9, 0.9);
-      for (var contact = this.m_contactManager.m_contactList; contact; contact = contact.GetNext()) {
+      for (var contact = this.m_contactManager.m_contactList;
+               contact;
+               contact = contact.GetNext()) {
         var fixtureA = contact.GetFixtureA();
         var fixtureB = contact.GetFixtureB();
         var cA = fixtureA.GetAABB().GetCenter();
@@ -4999,13 +5001,11 @@ Box2D.Dynamics.b2World = Box2D.inherit({
     if (flags & b2DebugDraw.e_aabbBit) {
       bp = this.m_contactManager.m_broadPhase;
       vs = [new b2Vec2(), new b2Vec2(), new b2Vec2(), new b2Vec2()];
-      for (b = this.m_bodyList;
-      b; b = b.GetNext()) {
+      for (b = this.m_bodyList; b; b = b.GetNext()) {
         if (b.IsActive() == false) {
           continue;
         }
-        for (f = b.GetFixtureList();
-        f; f = f.GetNext()) {
+        for (f = b.GetFixtureList(); f; f = f.GetNext()) {
           var aabb = f.m_proxy.aabb;
           vs[0].Set(aabb.lowerBound.x, aabb.lowerBound.y);
           vs[1].Set(aabb.upperBound.x, aabb.lowerBound.y);
@@ -5780,8 +5780,112 @@ var b2ContactSolver = Box2D.inherit({
     this.m_step = new b2TimeStep();
     this.m_constraints = new Array();
   },
+
+  _init_2_points: function(cc, bodyA, bodyB, normalX, normalY) {
+    var ccp1 = cc.points[0];
+    var ccp2 = cc.points[1];
+    var invMassA = bodyA.m_invMass;
+    var invIA = bodyA.m_invI;
+    var invMassB = bodyB.m_invMass;
+    var invIB = bodyB.m_invI;
+    var rn1A = ccp1.rA.x * normalY - ccp1.rA.y * normalX;
+    var rn1B = ccp1.rB.x * normalY - ccp1.rB.y * normalX;
+    var rn2A = ccp2.rA.x * normalY - ccp2.rA.y * normalX;
+    var rn2B = ccp2.rB.x * normalY - ccp2.rB.y * normalX;
+    var k11 = invMassA + invMassB + invIA * rn1A * rn1A + invIB * rn1B * rn1B;
+    var k22 = invMassA + invMassB + invIA * rn2A * rn2A + invIB * rn2B * rn2B;
+    var k12 = invMassA + invMassB + invIA * rn1A * rn2A + invIB * rn1B * rn2B;
+    var k_maxConditionNumber = 100;
+    if (k11 * k11 < k_maxConditionNumber * (k11 * k22 - k12 * k12)) {
+      cc.K.col1.Set(k11, k12);
+      cc.K.col2.Set(k12, k22);
+      cc.K.GetInverse(cc.normalMass);
+    } else {
+      cc.pointCount = 1;
+    }
+  },
+
+  // FIXME(slightlyoff): HOT
+  _init_for_contact: function(contact, i) {
+    var fixtureA = contact.m_fixtureA;
+    var fixtureB = contact.m_fixtureB;
+    var shapeA = fixtureA.m_shape;
+    var shapeB = fixtureB.m_shape;
+    var radiusA = shapeA.m_radius;
+    var radiusB = shapeB.m_radius;
+    var bodyA = fixtureA.m_body;
+    var bodyB = fixtureB.m_body;
+    var worldManifold = b2ContactSolver.s_worldManifold;
+    var manifold = contact.GetManifold();
+    var friction = b2Settings.b2MixFriction(
+                      fixtureA.GetFriction(), fixtureB.GetFriction());
+    var restitution = b2Settings.b2MixRestitution(
+                      fixtureA.GetRestitution(), fixtureB.GetRestitution());
+    var vAX = bodyA.m_linearVelocity.x;
+    var vAY = bodyA.m_linearVelocity.y;
+    var vBX = bodyB.m_linearVelocity.x;
+    var vBY = bodyB.m_linearVelocity.y;
+    var wA = bodyA.m_angularVelocity;
+    var wB = bodyB.m_angularVelocity;
+    b2ContactSolver.s_worldManifold.Initialize(
+                      manifold, bodyA.m_xf, radiusA, bodyB.m_xf, radiusB);
+    var normalX = b2ContactSolver.s_worldManifold.m_normal.x;
+    var normalY = b2ContactSolver.s_worldManifold.m_normal.y;
+    var cc = this.m_constraints[i];
+    cc.bodyA = bodyA;
+    cc.bodyB = bodyB;
+    cc.manifold = manifold;
+    cc.normal.x = normalX;
+    cc.normal.y = normalY;
+    cc.pointCount = manifold.m_pointCount;
+    cc.friction = friction;
+    cc.restitution = restitution;
+    cc.localPlaneNormal.x = manifold.m_localPlaneNormal.x;
+    cc.localPlaneNormal.y = manifold.m_localPlaneNormal.y;
+    cc.localPoint.x = manifold.m_localPoint.x;
+    cc.localPoint.y = manifold.m_localPoint.y;
+    cc.radius = radiusA + radiusB;
+    cc.type = manifold.m_type;
+    for (var k = 0; k < cc.pointCount; ++k) {
+      var cp = manifold.m_points[k];
+      var ccp = cc.points[k];
+      ccp.normalImpulse = cp.m_normalImpulse;
+      ccp.tangentImpulse = cp.m_tangentImpulse;
+      ccp.localPoint.SetV(cp.m_localPoint);
+      var rAX = ccp.rA.x = worldManifold.m_points[k].x - bodyA.m_sweep.c.x;
+      var rAY = ccp.rA.y = worldManifold.m_points[k].y - bodyA.m_sweep.c.y;
+      var rBX = ccp.rB.x = worldManifold.m_points[k].x - bodyB.m_sweep.c.x;
+      var rBY = ccp.rB.y = worldManifold.m_points[k].y - bodyB.m_sweep.c.y;
+      var rnA = rAX * normalY - rAY * normalX;
+      var rnB = rBX * normalY - rBY * normalX;
+      rnA *= rnA;
+      rnB *= rnB;
+      var kNormal = bodyA.m_invMass + bodyB.m_invMass + bodyA.m_invI * rnA + bodyB.m_invI * rnB;
+      ccp.normalMass = 1 / kNormal;
+      var kEqualized = bodyA.m_mass * bodyA.m_invMass + bodyB.m_mass * bodyB.m_invMass;
+      kEqualized += bodyA.m_mass * bodyA.m_invI * rnA + bodyB.m_mass * bodyB.m_invI * rnB;
+      ccp.equalizedMass = 1 / kEqualized;
+      var tangentX = normalY;
+      var tangentY = (-normalX);
+      var rtA = rAX * tangentY - rAY * tangentX;
+      var rtB = rBX * tangentY - rBY * tangentX;
+      rtA *= rtA;
+      rtB *= rtB;
+      var kTangent = bodyA.m_invMass + bodyB.m_invMass + bodyA.m_invI * rtA + bodyB.m_invI * rtB;
+      ccp.tangentMass = 1 / kTangent;
+      ccp.velocityBias = 0;
+      var tX = vBX + ((-wB * rBY)) - vAX - ((-wA * rAY));
+      var tY = vBY + (wB * rBX) - vAY - (wA * rAX);
+      var vRel = cc.normal.x * tX + cc.normal.y * tY;
+      if (vRel < (-b2Settings.b2_velocityThreshold)) {
+        ccp.velocityBias += (-cc.restitution * vRel);
+      }
+    }
+    if (cc.pointCount == 2) {
+      this._init_2_points(cc, bodyA, bodyB, normalX, normalY);
+    }
+  },
   Initialize: function(step, contacts, contactCount, allocator) {
-    if (contactCount === undefined) contactCount = 0;
     var contact;
     this.m_step.Set(step);
     this.m_allocator = allocator;
@@ -5793,101 +5897,7 @@ var b2ContactSolver = Box2D.inherit({
       this.m_constraints[this.m_constraints.length] = new b2ContactConstraint();
     }
     for (i = 0; i < contactCount; ++i) {
-      contact = contacts[i];
-      var fixtureA = contact.m_fixtureA;
-      var fixtureB = contact.m_fixtureB;
-      var shapeA = fixtureA.m_shape;
-      var shapeB = fixtureB.m_shape;
-      var radiusA = shapeA.m_radius;
-      var radiusB = shapeB.m_radius;
-      var bodyA = fixtureA.m_body;
-      var bodyB = fixtureB.m_body;
-      var manifold = contact.GetManifold();
-      var friction = b2Settings.b2MixFriction(fixtureA.GetFriction(), fixtureB.GetFriction());
-      var restitution = b2Settings.b2MixRestitution(fixtureA.GetRestitution(), fixtureB.GetRestitution());
-      var vAX = bodyA.m_linearVelocity.x;
-      var vAY = bodyA.m_linearVelocity.y;
-      var vBX = bodyB.m_linearVelocity.x;
-      var vBY = bodyB.m_linearVelocity.y;
-      var wA = bodyA.m_angularVelocity;
-      var wB = bodyB.m_angularVelocity;
-      b2Settings.b2Assert(manifold.m_pointCount > 0);
-      b2ContactSolver.s_worldManifold.Initialize(manifold, bodyA.m_xf, radiusA, bodyB.m_xf, radiusB);
-      var normalX = b2ContactSolver.s_worldManifold.m_normal.x;
-      var normalY = b2ContactSolver.s_worldManifold.m_normal.y;
-      var cc = this.m_constraints[i];
-      cc.bodyA = bodyA;
-      cc.bodyB = bodyB;
-      cc.manifold = manifold;
-      cc.normal.x = normalX;
-      cc.normal.y = normalY;
-      cc.pointCount = manifold.m_pointCount;
-      cc.friction = friction;
-      cc.restitution = restitution;
-      cc.localPlaneNormal.x = manifold.m_localPlaneNormal.x;
-      cc.localPlaneNormal.y = manifold.m_localPlaneNormal.y;
-      cc.localPoint.x = manifold.m_localPoint.x;
-      cc.localPoint.y = manifold.m_localPoint.y;
-      cc.radius = radiusA + radiusB;
-      cc.type = manifold.m_type;
-      for (var k = 0; k < cc.pointCount; ++k) {
-        var cp = manifold.m_points[k];
-        var ccp = cc.points[k];
-        ccp.normalImpulse = cp.m_normalImpulse;
-        ccp.tangentImpulse = cp.m_tangentImpulse;
-        ccp.localPoint.SetV(cp.m_localPoint);
-        var rAX = ccp.rA.x = b2ContactSolver.s_worldManifold.m_points[k].x - bodyA.m_sweep.c.x;
-        var rAY = ccp.rA.y = b2ContactSolver.s_worldManifold.m_points[k].y - bodyA.m_sweep.c.y;
-        var rBX = ccp.rB.x = b2ContactSolver.s_worldManifold.m_points[k].x - bodyB.m_sweep.c.x;
-        var rBY = ccp.rB.y = b2ContactSolver.s_worldManifold.m_points[k].y - bodyB.m_sweep.c.y;
-        var rnA = rAX * normalY - rAY * normalX;
-        var rnB = rBX * normalY - rBY * normalX;
-        rnA *= rnA;
-        rnB *= rnB;
-        var kNormal = bodyA.m_invMass + bodyB.m_invMass + bodyA.m_invI * rnA + bodyB.m_invI * rnB;
-        ccp.normalMass = 1 / kNormal;
-        var kEqualized = bodyA.m_mass * bodyA.m_invMass + bodyB.m_mass * bodyB.m_invMass;
-        kEqualized += bodyA.m_mass * bodyA.m_invI * rnA + bodyB.m_mass * bodyB.m_invI * rnB;
-        ccp.equalizedMass = 1 / kEqualized;
-        var tangentX = normalY;
-        var tangentY = (-normalX);
-        var rtA = rAX * tangentY - rAY * tangentX;
-        var rtB = rBX * tangentY - rBY * tangentX;
-        rtA *= rtA;
-        rtB *= rtB;
-        var kTangent = bodyA.m_invMass + bodyB.m_invMass + bodyA.m_invI * rtA + bodyB.m_invI * rtB;
-        ccp.tangentMass = 1 / kTangent;
-        ccp.velocityBias = 0;
-        var tX = vBX + ((-wB * rBY)) - vAX - ((-wA * rAY));
-        var tY = vBY + (wB * rBX) - vAY - (wA * rAX);
-        var vRel = cc.normal.x * tX + cc.normal.y * tY;
-        if (vRel < (-b2Settings.b2_velocityThreshold)) {
-          ccp.velocityBias += (-cc.restitution * vRel);
-        }
-      }
-      if (cc.pointCount == 2) {
-        var ccp1 = cc.points[0];
-        var ccp2 = cc.points[1];
-        var invMassA = bodyA.m_invMass;
-        var invIA = bodyA.m_invI;
-        var invMassB = bodyB.m_invMass;
-        var invIB = bodyB.m_invI;
-        var rn1A = ccp1.rA.x * normalY - ccp1.rA.y * normalX;
-        var rn1B = ccp1.rB.x * normalY - ccp1.rB.y * normalX;
-        var rn2A = ccp2.rA.x * normalY - ccp2.rA.y * normalX;
-        var rn2B = ccp2.rB.x * normalY - ccp2.rB.y * normalX;
-        var k11 = invMassA + invMassB + invIA * rn1A * rn1A + invIB * rn1B * rn1B;
-        var k22 = invMassA + invMassB + invIA * rn2A * rn2A + invIB * rn2B * rn2B;
-        var k12 = invMassA + invMassB + invIA * rn1A * rn2A + invIB * rn1B * rn2B;
-        var k_maxConditionNumber = 100;
-        if (k11 * k11 < k_maxConditionNumber * (k11 * k22 - k12 * k12)) {
-          cc.K.col1.Set(k11, k12);
-          cc.K.col2.Set(k12, k22);
-          cc.K.GetInverse(cc.normalMass);
-        } else {
-          cc.pointCount = 1;
-        }
-      }
+      this._init_for_contact(contacts[i], i);
     }
   },
   InitVelocityConstraints: function(step) {
@@ -6137,7 +6147,6 @@ var b2ContactSolver = Box2D.inherit({
     }
   },
   SolvePositionConstraints: function(baumgarte) {
-    if (baumgarte === undefined) baumgarte = 0;
     var minSeparation = 0;
     for (var i = 0; i < this.m_constraintCount; i++) {
       var c = this.m_constraints[i];
@@ -6290,87 +6299,85 @@ var b2PositionSolverManifold = Box2D.inherit({
       this.m_points[i] = new b2Vec2();
     }
   },
-  Initialize: function (cc) {
-    b2Settings.b2Assert(cc.pointCount > 0);
-    var i = 0;
+  _initialize_circles: function(cc) {
+    var tMat = cc.bodyA.m_xf.R;
+    var tVec = cc.localPoint;
+    var pointAX = cc.bodyA.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+    var pointAY = cc.bodyA.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+    tMat = cc.bodyB.m_xf.R;
+    tVec = cc.points[0].localPoint;
+    var pointBX = cc.bodyB.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+    var pointBY = cc.bodyB.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+    var dX = pointBX - pointAX;
+    var dY = pointBY - pointAY;
+    var d2 = dX * dX + dY * dY;
+    if (d2 > Number.MIN_VALUE * Number.MIN_VALUE) {
+      var d = Math.sqrt(d2);
+      this.m_normal.x = dX / d;
+      this.m_normal.y = dY / d;
+    } else {
+      this.m_normal.x = 1;
+      this.m_normal.y = 0;
+    }
+    this.m_points[0].x = 0.5 * (pointAX + pointBX);
+    this.m_points[0].y = 0.5 * (pointAY + pointBY);
+    this.m_separations[0] = dX * this.m_normal.x + dY * this.m_normal.y - cc.radius;
+
+  },
+  _initialize_faceA: function(cc) {
     var clipPointX = 0;
     var clipPointY = 0;
-    var tMat;
-    var tVec;
-    var planePointX = 0;
-    var planePointY = 0;
+    var tMat = cc.bodyA.m_xf.R;
+    var tVec = cc.localPlaneNormal;
+    this.m_normal.x = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+    this.m_normal.y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+    tMat = cc.bodyA.m_xf.R;
+    tVec = cc.localPoint;
+    var planePointX = cc.bodyA.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+    var planePointY = cc.bodyA.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+    tMat = cc.bodyB.m_xf.R;
+    for (var i = 0; i < cc.pointCount; ++i) {
+      tVec = cc.points[i].localPoint;
+      clipPointX = cc.bodyB.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+      clipPointY = cc.bodyB.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+      this.m_separations[i] = (clipPointX - planePointX) * this.m_normal.x + (clipPointY - planePointY) * this.m_normal.y - cc.radius;
+      this.m_points[i].x = clipPointX;
+      this.m_points[i].y = clipPointY;
+    }
+  },
+  _initialize_faceB: function(cc) {
+    var clipPointX = 0;
+    var clipPointY = 0;
+    var tMat = cc.bodyB.m_xf.R;
+    var tVec = cc.localPlaneNormal;
+    this.m_normal.x = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
+    this.m_normal.y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
+    tMat = cc.bodyB.m_xf.R;
+    tVec = cc.localPoint;
+    var planePointX = cc.bodyB.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+    var planePointY = cc.bodyB.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+    tMat = cc.bodyA.m_xf.R;
+    for (var i = 0; i < cc.pointCount; ++i) {
+      tVec = cc.points[i].localPoint;
+      clipPointX = cc.bodyA.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
+      clipPointY = cc.bodyA.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
+      this.m_separations[i] = (clipPointX - planePointX) * this.m_normal.x + (clipPointY - planePointY) * this.m_normal.y - cc.radius;
+      this.m_points[i].Set(clipPointX, clipPointY);
+    }
+    this.m_normal.x *= (-1);
+    this.m_normal.y *= (-1);
+  },
+  Initialize: function(cc) {
     switch (cc.type) {
-    case b2Manifold.e_circles:
-      {
-        tMat = cc.bodyA.m_xf.R;
-        tVec = cc.localPoint;
-        var pointAX = cc.bodyA.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
-        var pointAY = cc.bodyA.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
-        tMat = cc.bodyB.m_xf.R;
-        tVec = cc.points[0].localPoint;
-        var pointBX = cc.bodyB.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
-        var pointBY = cc.bodyB.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
-        var dX = pointBX - pointAX;
-        var dY = pointBY - pointAY;
-        var d2 = dX * dX + dY * dY;
-        if (d2 > Number.MIN_VALUE * Number.MIN_VALUE) {
-          var d = Math.sqrt(d2);
-          this.m_normal.x = dX / d;
-          this.m_normal.y = dY / d;
-        } else {
-          this.m_normal.x = 1;
-          this.m_normal.y = 0;
-        }
-        this.m_points[0].x = 0.5 * (pointAX + pointBX);
-        this.m_points[0].y = 0.5 * (pointAY + pointBY);
-        this.m_separations[0] = dX * this.m_normal.x + dY * this.m_normal.y - cc.radius;
-      }
-      break;
-    case b2Manifold.e_faceA:
-      {
-        tMat = cc.bodyA.m_xf.R;
-        tVec = cc.localPlaneNormal;
-        this.m_normal.x = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-        this.m_normal.y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-        tMat = cc.bodyA.m_xf.R;
-        tVec = cc.localPoint;
-        planePointX = cc.bodyA.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
-        planePointY = cc.bodyA.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
-        tMat = cc.bodyB.m_xf.R;
-        for (i = 0;
-        i < cc.pointCount; ++i) {
-          tVec = cc.points[i].localPoint;
-          clipPointX = cc.bodyB.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
-          clipPointY = cc.bodyB.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
-          this.m_separations[i] = (clipPointX - planePointX) * this.m_normal.x + (clipPointY - planePointY) * this.m_normal.y - cc.radius;
-          this.m_points[i].x = clipPointX;
-          this.m_points[i].y = clipPointY;
-        }
-      }
-      break;
-    case b2Manifold.e_faceB:
-      {
-        tMat = cc.bodyB.m_xf.R;
-        tVec = cc.localPlaneNormal;
-        this.m_normal.x = tMat.col1.x * tVec.x + tMat.col2.x * tVec.y;
-        this.m_normal.y = tMat.col1.y * tVec.x + tMat.col2.y * tVec.y;
-        tMat = cc.bodyB.m_xf.R;
-        tVec = cc.localPoint;
-        planePointX = cc.bodyB.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
-        planePointY = cc.bodyB.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
-        tMat = cc.bodyA.m_xf.R;
-        for (i = 0;
-        i < cc.pointCount; ++i) {
-          tVec = cc.points[i].localPoint;
-          clipPointX = cc.bodyA.m_xf.position.x + (tMat.col1.x * tVec.x + tMat.col2.x * tVec.y);
-          clipPointY = cc.bodyA.m_xf.position.y + (tMat.col1.y * tVec.x + tMat.col2.y * tVec.y);
-          this.m_separations[i] = (clipPointX - planePointX) * this.m_normal.x + (clipPointY - planePointY) * this.m_normal.y - cc.radius;
-          this.m_points[i].Set(clipPointX, clipPointY);
-        }
-        this.m_normal.x *= (-1);
-        this.m_normal.y *= (-1);
-      }
-      break;
+      case b2Manifold.e_circles:
+        this._initialize_circles(cc);
+        break;
+      case b2Manifold.e_faceA:
+        this._initialize_faceA(cc);
+        break;
+      case b2Manifold.e_faceB:
+        this._initialize_faceB(cc);
+        break;
     }
   },
 });
@@ -6402,7 +6409,9 @@ var b2BuoyancyController = Box2D.inherit({
       var massc = new b2Vec2();
       var area = 0;
       var mass = 0;
-      for (var fixture = body.GetFixtureList(); fixture; fixture = fixture.GetNext()) {
+      for (var fixture = body.GetFixtureList();
+           fixture;
+           fixture = fixture.GetNext()) {
         var sc = new b2Vec2();
         var sarea = fixture.GetShape().ComputeSubmergedArea(this.normal, this.offset, body.GetTransform(), sc);
         area += sarea;
@@ -7064,10 +7073,7 @@ var b2FrictionJoint = Box2D.inherit({
     bA.m_angularVelocity = wA;
     bB.m_angularVelocity = wB;
   },
-  SolvePositionConstraints: function(baumgarte) {
-    if (baumgarte === undefined) baumgarte = 0;
-    return true;
-  },
+  SolvePositionConstraints: function(baumgarte) { return true; },
 });
 
 
@@ -7246,7 +7252,6 @@ var b2GearJoint = Box2D.inherit({
     bB.m_angularVelocity += bB.m_invI * impulse * this.m_J.angularB;
   },
   SolvePositionConstraints: function(baumgarte) {
-    if (baumgarte === undefined) baumgarte = 0;
     var linearError = 0;
     var bA = this.m_bodyA;
     var bB = this.m_bodyB;
@@ -7587,7 +7592,6 @@ var b2RevoluteJoint = Box2D.inherit({
     bB.m_angularVelocity = w2;
   },
   SolvePositionConstraints: function (baumgarte) {
-    if (baumgarte === undefined) baumgarte = 0;
     var oldLimitImpulse = 0;
     var C = 0;
     var tMat;
@@ -7828,7 +7832,6 @@ var b2WeldJoint = Box2D.inherit({
     bB.m_angularVelocity = wB;
   },
   SolvePositionConstraints: function(baumgarte) {
-    if (baumgarte === undefined) baumgarte = 0;
     var tMat;
     var tX = 0;
     var bA = this.m_bodyA;
@@ -8195,7 +8198,6 @@ var b2LineJoint = Box2D.inherit({
     bB.m_angularVelocity = w2;
   },
   SolvePositionConstraints: function(baumgarte) {
-    if (baumgarte === undefined) baumgarte = 0;
     var limitC = 0;
     var oldLimitImpulse = 0;
     var bA = this.m_bodyA;
@@ -8496,9 +8498,7 @@ var b2MouseJoint = Box2D.inherit({
     b.m_linearVelocity.y += b.m_invMass * impulseY;
     b.m_angularVelocity += b.m_invI * (rX * impulseY - rY * impulseX);
   },
-  SolvePositionConstraints: function(baumgarte) {
-    return true;
-  },
+  SolvePositionConstraints: function(baumgarte) { return true; },
 });
 
 var b2MouseJointDef = Box2D.inherit({
@@ -8815,7 +8815,6 @@ var b2PrismaticJoint = Box2D.inherit({
     bB.m_angularVelocity = w2;
   },
   SolvePositionConstraints: function(baumgarte) {
-    if (baumgarte === undefined) baumgarte = 0;
     var limitC = 0;
     var oldLimitImpulse = 0;
     var bA = this.m_bodyA;
@@ -9187,7 +9186,6 @@ var b2PulleyJoint = Box2D.inherit({
     }
   },
   SolvePositionConstraints: function (baumgarte) {
-    if (baumgarte === undefined) baumgarte = 0;
     var bA = this.m_bodyA;
     var bB = this.m_bodyB;
     var tMat;
