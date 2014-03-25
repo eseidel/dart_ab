@@ -3999,7 +3999,6 @@ var b2Body = Box2D.inherit({
   GetJointList: function() { return this.m_jointList; },
   GetControllerList: function() { return this.m_controllerList; },
   GetContactList: function() { return this.m_contactList; },
-  GetNext: function() { return this.m_next; },
   GetUserData: function() { return this.userData; },
   SetUserData: function(data) { this.userData = data; },
   GetWorld: function() { return this.m_world; },
@@ -4209,19 +4208,19 @@ var b2ContactManager = Box2D.inherit({
       var bodyA = fixtureA.GetBody();
       var bodyB = fixtureB.GetBody();
       if (bodyA.IsAwake() == false && bodyB.IsAwake() == false) {
-        c = c.GetNext();
+        c = c.m_next;
         continue;
       }
       if (c.m_flags & b2Contact.e_filterFlag) {
         if (bodyB.ShouldCollide(bodyA) == false) {
           var cNuke = c;
-          c = cNuke.GetNext();
+          c = cNuke.m_next;
           this.Destroy(cNuke);
           continue;
         }
         if (this.m_contactFilter.ShouldCollide(fixtureA, fixtureB) == false) {
           cNuke = c;
-          c = cNuke.GetNext();
+          c = cNuke.m_next;
           this.Destroy(cNuke);
           continue;
         }
@@ -4232,12 +4231,12 @@ var b2ContactManager = Box2D.inherit({
       var overlap = this.m_broadPhase.TestOverlap(proxyA, proxyB);
       if (overlap == false) {
         cNuke = c;
-        c = cNuke.GetNext();
+        c = cNuke.m_next;
         this.Destroy(cNuke);
         continue;
       }
       c.Update(this.m_contactListener);
-      c = c.GetNext();
+      c = c.m_next;
     }
   },
 });
@@ -4327,9 +4326,6 @@ var b2Fixture = Box2D.inherit({
   },
   GetBody: function() {
     return this.m_body;
-  },
-  GetNext: function() {
-    return this.m_next;
   },
   SetUserData: function(data) {
     this.userData = data;
@@ -4989,7 +4985,7 @@ var b2World = Box2D.inherit({
       color.Set(0.3, 0.9, 0.9);
       for (var contact = this.m_contactManager.m_contactList;
                contact;
-               contact = contact.GetNext()) {
+               contact = contact.m_next) {
         var fixtureA = contact.GetFixtureA();
         var fixtureB = contact.GetFixtureB();
         var cA = fixtureA.GetAABB().GetCenter();
@@ -5000,11 +4996,11 @@ var b2World = Box2D.inherit({
     if (flags & b2DebugDraw.e_aabbBit) {
       bp = this.m_contactManager.m_broadPhase;
       vs = [new b2Vec2(), new b2Vec2(), new b2Vec2(), new b2Vec2()];
-      for (b = this.m_bodyList; b; b = b.GetNext()) {
+      for (b = this.m_bodyList; b; b = b.m_next) {
         if (b.IsActive() == false) {
           continue;
         }
-        for (f = b.GetFixtureList(); f; f = f.GetNext()) {
+        for (f = b.GetFixtureList(); f; f = f.m_next) {
           var aabb = f.m_proxy.aabb;
           vs[0].Set(aabb.lowerBound.x, aabb.lowerBound.y);
           vs[1].Set(aabb.upperBound.x, aabb.lowerBound.y);
@@ -5476,9 +5472,11 @@ var b2Contact = Box2D.inherit({
     this.m_nodeB = new b2ContactEdge();
     this.m_manifold = new b2Manifold();
     this.m_oldManifold = new b2Manifold();
-  },
-  GetManifold: function() {
-    return this.m_manifold;
+    this.m_flags = 0;
+    this.m_next = null;
+    this.m_prev = null;
+    this.m_fixtureA = null;
+    this.m_fixtureB = null;
   },
   GetWorldManifold: function(worldManifold) {
     var bodyA = this.m_fixtureA.GetBody();
@@ -5517,9 +5515,6 @@ var b2Contact = Box2D.inherit({
   },
   IsEnabled: function() {
     return (this.m_flags & b2Contact.e_enabledFlag) == b2Contact.e_enabledFlag;
-  },
-  GetNext: function() {
-    return this.m_next;
   },
   GetFixtureA: function() {
     return this.m_fixtureA;
@@ -5815,7 +5810,7 @@ var b2ContactSolver = Box2D.inherit({
     var bodyA = fixtureA.m_body;
     var bodyB = fixtureB.m_body;
     var worldManifold = b2ContactSolver.s_worldManifold;
-    var manifold = contact.GetManifold();
+    var manifold = contact.m_manifold;
     var friction = b2Settings.b2MixFriction(
                       fixtureA.GetFriction(), fixtureB.GetFriction());
     var restitution = b2Settings.b2MixRestitution(
@@ -6410,7 +6405,7 @@ var b2BuoyancyController = Box2D.inherit({
       var mass = 0;
       for (var fixture = body.GetFixtureList();
            fixture;
-           fixture = fixture.GetNext()) {
+           fixture = fixture.m_next) {
         var sc = new b2Vec2();
         var sarea = fixture.GetShape().ComputeSubmergedArea(this.normal, this.offset, body.GetTransform(), sc);
         area += sarea;
@@ -6508,9 +6503,6 @@ var b2Controller = Box2D.inherit({
   Clear: function () {
     while (this.m_bodyList)
     this.RemoveBody(this.m_bodyList.body);
-  },
-  GetNext: function () {
-    return this.m_next;
   },
   GetWorld: function () {
     return this.m_world;
@@ -6652,7 +6644,6 @@ var b2Joint = Box2D.inherit({
   GetReactionTorque: function(inv_dt) { return 0; },
   GetBodyA: function() { return this.m_bodyA; },
   GetBodyB: function() { return this.m_bodyB; },
-  GetNext: function() { return this.m_next; },
   SetUserData: function(data) { this.userData = data; },
   IsActive: function() {
     return this.m_bodyA.IsActive() && this.m_bodyB.IsActive();
