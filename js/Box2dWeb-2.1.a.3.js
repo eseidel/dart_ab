@@ -2655,9 +2655,6 @@ var b2EdgeShape = Box2D.inherit({
     c.y = (v0.y + v1.y + v2.y) / 3;
     return 0.5 * ((v1.x - v0.x) * (v2.y - v0.y) - (v1.y - v0.y) * (v2.x - v0.x));
   },
-  GetLength: function() {
-    return this.m_length;
-  },
   GetVertex1: function() {
     return this.m_v1;
   },
@@ -2691,12 +2688,6 @@ var b2EdgeShape = Box2D.inherit({
   GetFirstVertex: function(xf) {
     var tMat = xf.R;
     return new b2Vec2(xf.position.x + (tMat.col1.x * this.m_coreV1.x + tMat.col2.x * this.m_coreV1.y), xf.position.y + (tMat.col1.y * this.m_coreV1.x + tMat.col2.y * this.m_coreV1.y));
-  },
-  GetNextEdge: function() {
-    return this.m_nextEdge;
-  },
-  GetPrevEdge: function() {
-    return this.m_prevEdge;
   },
   Support: function(xf, dX, dY) {
     if (dX === undefined) dX = 0;
@@ -5680,7 +5671,12 @@ var b2ContactConstraintPoint = Box2D.inherit({
   },
 });
 
-var b2ContactEdge = function() {};
+var b2ContactEdge = function() {
+  c.m_nodeA.contact = null;
+  c.m_nodeA.other = null;
+  c.m_nodeA.prev = null;
+  c.m_nodeA.next = null;
+};
 
 var b2ContactFactory = Box2D.inherit({
   initialize: function(allocator) {
@@ -6725,7 +6721,6 @@ var b2DistanceJoint = Box2D.inherit({
     if (inv_dt === undefined) inv_dt = 0;
     return 0;
   },
-  GetLength: function () { return this.m_length; },
   SetLength: function (length) {
     if (length === undefined) length = 0;
     this.m_length = length;
