@@ -5526,8 +5526,6 @@ var b2Contact = Box2D.inherit({
     this.m_flags |= b2Contact.e_filterFlag;
   },
   Reset: function(fixtureA, fixtureB) {
-    if (fixtureA === undefined) fixtureA = null;
-    if (fixtureB === undefined) fixtureB = null;
     this.m_flags = b2Contact.e_enabledFlag;
     if (!fixtureA || !fixtureB) {
       this.m_fixtureA = null;
@@ -5539,7 +5537,10 @@ var b2Contact = Box2D.inherit({
     }
     var bodyA = fixtureA.GetBody();
     var bodyB = fixtureB.GetBody();
-    if (bodyA.GetType() != b2Body.b2_dynamicBody || bodyA.IsBullet() || bodyB.GetType() != b2Body.b2_dynamicBody || bodyB.IsBullet()) {
+    if (bodyA.GetType() != b2Body.b2_dynamicBody ||
+        bodyA.IsBullet() ||
+        bodyB.GetType() != b2Body.b2_dynamicBody ||
+        bodyB.IsBullet()) {
       this.m_flags |= b2Contact.e_continuousFlag;
     }
     this.m_fixtureA = fixtureA;
