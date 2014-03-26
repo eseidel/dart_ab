@@ -5443,7 +5443,8 @@ var b2World = Box2D.inherit({
         var center = b2Math.MulX(xf, circle.m_p);
         var radius = circle.m_radius;
         var axis = xf.R.col1;
-        this.m_debugDraw.DrawSolidCircle(center, radius, axis, color);
+        // this.m_debugDraw.DrawSolidCircle(center, radius, axis, color);
+        this.m_debugDraw._honest_DrawSolidCircle(center, radius, axis, color);
         // FIXME(slightlyoff): DrawCircle is much faster.
         // this.m_debugDraw.DrawCircle(center, radius, color);
         break;
@@ -9425,14 +9426,12 @@ b2DebugDraw.prototype.GetLineThickness = function () {
   return this.m_lineThickness;
 };
 b2DebugDraw.prototype.SetAlpha = function (alpha) {
-  if (alpha === undefined) alpha = 0;
   this.m_alpha = alpha;
 };
 b2DebugDraw.prototype.GetAlpha = function () {
   return this.m_alpha;
 };
 b2DebugDraw.prototype.SetFillAlpha = function (alpha) {
-  if (alpha === undefined) alpha = 0;
   this.m_fillAlpha = alpha;
 };
 b2DebugDraw.prototype.GetFillAlpha = function () {
@@ -9484,6 +9483,18 @@ b2DebugDraw.prototype.DrawCircle = function (center, radius, color) {
   s.arc(center.x * drawScale, center.y * drawScale, radius * drawScale, 0, Math.PI * 2, true);
   s.closePath();
   s.stroke();
+};
+b2DebugDraw.prototype._honest_DrawSolidCircle = function (center, radius, axis, color) {
+  var s = this.m_ctx,
+    drawScale = this.m_drawScale,
+    cx = center.x * drawScale,
+    cy = center.y * drawScale;
+  s.moveTo(0, 0);
+  s.beginPath();
+  s.fillStyle = this._color(color.color, this.m_fillAlpha);
+  s.arc(cx, cy, radius * drawScale, 0, Math.PI * 2, true);
+  s.closePath();
+  s.fill();
 };
 b2DebugDraw.prototype.DrawSolidCircle = function (center, radius, axis, color) {
   if (!radius) return;
