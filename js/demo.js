@@ -164,7 +164,7 @@ Demo.prototype.initializeAnimation = function() {
     debugDraw.SetSprite(this.ctx);
     //debugDraw.SetDrawScale(this._viewportScale);
     debugDraw.SetDrawScale(3);
-    // debugDraw.SetFillAlpha(0.3);
+    debugDraw.SetFillAlpha(0.6);
     debugDraw.SetLineThickness(1.0);
     debugDraw.SetFlags(b2DebugDraw.e_shapeBit);
 
