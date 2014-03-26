@@ -4428,15 +4428,9 @@ var b2Island = Box2D.inherit({
     this.m_contactCount = 0;
     this.m_jointCount = 0;
   },
-  Solve: function(step, gravity, allowSleep) {
-    // FIXME(slightlyoff): deoptimizing!
-    //    "Optimized too many times"
-    var i = 0;
-    var j = 0;
-    var b;
-    var joint;
-    for (i = 0; i < this.m_bodyCount; ++i) {
-      b = this.m_bodies[i];
+  _solve_dynamic_body_setup: function(step, gravity) {
+    for (var i = 0; i < this.m_bodyCount; ++i) {
+      var b = this.m_bodies[i];
       if (b.type != b2Body.b2_dynamicBody) continue;
       b.m_linearVelocity.x += step.dt * (gravity.x + b.m_invMass * b.m_force.x);
       b.m_linearVelocity.y += step.dt * (gravity.y + b.m_invMass * b.m_force.y);
@@ -4444,23 +4438,35 @@ var b2Island = Box2D.inherit({
       b.m_linearVelocity.Multiply(b2Math.Clamp(1 - step.dt * b.m_linearDamping, 0, 1));
       b.m_angularVelocity *= b2Math.Clamp(1 - step.dt * b.m_angularDamping, 0.0, 1);
     }
-    this.m_contactSolver.Initialize(step, this.m_contacts, this.m_contactCount, this.m_allocator);
-    var contactSolver = this.m_contactSolver;
-    contactSolver.InitVelocityConstraints(step);
-    for (i = 0; i < this.m_jointCount; ++i) {
-      joint = this.m_joints[i];
-      joint.InitVelocityConstraints(step);
+  },
+  _solve_init_joint_velocity: function(step) {
+    for (var i = 0; i < this.m_jointCount; ++i) {
+      this.m_joints[i].InitVelocityConstraints(step);
     }
-    for (i = 0; i < step.velocityIterations; ++i) {
-      for (j = 0; j < this.m_jointCount; ++j) {
-        joint = this.m_joints[j];
-        joint.SolveVelocityConstraints(step);
+  },
+  _solve_velocity_constraints: function(contactSolver, step) {
+    for (var i = 0; i < step.velocityIterations; ++i) {
+      for (var j = 0; j < this.m_jointCount; ++j) {
+        this.m_joints[j].SolveVelocityConstraints(step);
       }
       contactSolver.SolveVelocityConstraints();
     }
+  },
+  Solve: function(step, gravity, allowSleep) {
+    // FIXME(slightlyoff): deoptimizing!
+    //    "Optimized too many times"
+    var i = 0;
+    var j = 0;
+    var b;
+    var joint;
+    this._solve_dynamic_body_setup(step, gravity);
+    this.m_contactSolver.Initialize(step, this.m_contacts, this.m_contactCount, this.m_allocator);
+    var contactSolver = this.m_contactSolver;
+    contactSolver.InitVelocityConstraints(step);
+    this._solve_init_joint_velocity(step);
+    this._solve_velocity_constraints(contactSolver, step);
     for (i = 0; i < this.m_jointCount; ++i) {
-      joint = this.m_joints[i];
-      joint.FinalizeVelocityConstraints();
+      this.m_joints[i].FinalizeVelocityConstraints();
     }
     contactSolver.FinalizeVelocityConstraints();
     for (i = 0; i < this.m_bodyCount; ++i) {
@@ -5671,9 +5677,11 @@ var b2CircleContact = Box2D.inherit({
     var sB = this.m_fixtureA.shape;
     b2Collision.CollideCircles(
         this.m_manifold,
-        sA, // (sA instanceof b2CircleShape ? sA : null),
+        (sA instanceof b2CircleShape ? sA : null),
+        // sA, // (sA instanceof b2CircleShape ? sA : null),
         bA.m_xf,
-        sB, // (sB instanceof b2CircleShape ? sB: null),
+        (sB instanceof b2CircleShape ? sB: null),
+        // sB, // (sB instanceof b2CircleShape ? sB: null),
         bB.m_xf
     );
   },
@@ -6196,21 +6204,19 @@ var b2ContactSolver = Box2D.inherit({
 var b2EdgeAndCircleContact = Box2D.inherit({
   extends: b2Contact,
   initialize: function b2EdgeAndCircleContact() {},
-  Reset: function (fixtureA, fixtureB) {
-    b2Contact.prototype.Reset.call(this, fixtureA, fixtureB);
-  },
   Evaluate: function () {
+    // FIXME(slightlyoff): appears to be a no-op?
+    /*
     var bA = this.m_fixtureA.GetBody();
     var bB = this.m_fixtureB.GetBody();
     this.b2CollideEdgeAndCircle(
         this.m_manifold,
-        (this.m_fixtureA.shape instanceof b2EdgeShape ? this.m_fixtureA.shape : null),
-        bA.m_xf,
-        (this.m_fixtureB.shape instanceof b2CircleShape ? this.m_fixtureB.shape : null),
-        bB.m_xf
+        this.m_fixtureA.shape, bA.m_xf,
+        this.m_fixtureB.shape, bB.m_xf
     );
+    */
   },
-  b2CollideEdgeAndCircle: function (manifold, edge, xf1, circle, xf2) {},
+  // b2CollideEdgeAndCircle: function (manifold, edge, xf1, circle, xf2) {},
 });
 b2EdgeAndCircleContact.Create = function (allocator) {
   return new b2EdgeAndCircleContact();
@@ -6241,8 +6247,10 @@ var b2PolyAndCircleContact = Box2D.inherit({
     b2Collision.CollidePolygonAndCircle(
         this.m_manifold,
         (this.m_fixtureA.shape instanceof b2PolygonShape ? this.m_fixtureA.shape : null),
+        // this.m_fixtureA.shape,
         bA.m_xf,
         (this.m_fixtureB.shape instanceof b2CircleShape ? this.m_fixtureB.shape : null),
+        // this.m_fixtureB.shape,
         bB.m_xf
     );
   },
