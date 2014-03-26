@@ -5456,7 +5456,7 @@ var b2World = Box2D.inherit({
         for (i = 0; i < vertexCount; ++i) {
           vertices[i] = b2Math.MulX(xf, localVertices[i]);
         }
-        this.m_debugDraw.DrawSolidPolygon(vertices, vertexCount, color);
+        this.m_debugDraw._honest_DrawSolidPolygon(vertices, vertexCount, color);
         break;
       case b2Shape.e_edgeShape:
         this.m_debugDraw.DrawSegment(
@@ -9473,6 +9473,19 @@ b2DebugDraw.prototype.DrawSolidPolygon = function (vertices, vertexCount, color)
   s.closePath();
   s.fill();
   s.stroke();
+};
+b2DebugDraw.prototype._honest_DrawSolidPolygon = function (vertices, vertexCount, color) {
+  var s = this.m_ctx;
+  var drawScale = this.m_drawScale;
+  s.beginPath();
+  s.fillStyle = this._color(color.color, this.m_fillAlpha);
+  s.moveTo(vertices[0].x * drawScale, vertices[0].y * drawScale);
+  for (var i = 1; i < vertexCount; i++) {
+    s.lineTo(vertices[i].x * drawScale, vertices[i].y * drawScale);
+  }
+  s.lineTo(vertices[0].x * drawScale, vertices[0].y * drawScale);
+  s.closePath();
+  s.fill();
 };
 b2DebugDraw.prototype.DrawCircle = function (center, radius, color) {
   if (!radius) return;
