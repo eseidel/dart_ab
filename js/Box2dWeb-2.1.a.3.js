@@ -1539,10 +1539,14 @@ var b2DynamicTreePair = Box2D.inherit({
 var b2Manifold = Box2D.inherit({
   initialize: function b2Manifold() {
     this.m_pointCount = 0;
+    /*
     this.m_points = new Array(b2Settings.b2_maxManifoldPoints);
     for (var i = 0; i < b2Settings.b2_maxManifoldPoints; i++) {
       this.m_points[i] = new b2ManifoldPoint();
     }
+    */
+    // Always 2.
+    this.m_points = [ new b2ManifoldPoint(), new b2ManifoldPoint() ];
     this.m_localPlaneNormal = new b2Vec2();
     this.m_localPoint = new b2Vec2();
   },
@@ -2323,7 +2327,7 @@ var b2WorldManifold = Box2D.inherit({
   Initialize: function(manifold, xfA, radiusA, xfB, radiusB) {
     if (radiusA === undefined) radiusA = 0;
     if (radiusB === undefined) radiusB = 0;
-    if (manifold.m_pointCount == 0) { return; }
+    if (!manifold.m_pointCount) { return; }
     switch (manifold.type) {
       case b2Manifold.e_circles:
         this._initialize_circles(manifold, xfA, radiusA, xfB, radiusB);
@@ -5559,6 +5563,22 @@ var b2Contact = Box2D.inherit({
     this.m_manifold.m_pointCount = 0;
     return touching;
   },
+  _update_non_sensor_inner: function(mp2) {
+    var oldManifold = this.m_oldManifold;
+    var pc = oldManifold.m_pointCount;
+    mp2.m_normalImpulse = 0;
+    mp2.m_tangentImpulse = 0;
+    var id2 = mp2.id;
+    var mp1 = mp2;
+    for (var j = 0; j < pc; j++) {
+      mp1 = oldManifold.m_points[j];
+      if (mp1.id.key == id2.key) {
+        mp2.m_normalImpulse = mp1.m_normalImpulse;
+        mp2.m_tangentImpulse = mp1.m_tangentImpulse;
+        break;
+      }
+    }
+  },
   _update_non_sensor: function(aabbOverlap, bodyA, bodyB, wasTouching) {
     var touching = false;
     if (bodyA.type != b2Body.b2_dynamicBody || bodyA.IsBullet() || bodyB.type != b2Body.b2_dynamicBody || bodyB.IsBullet()) {
@@ -5570,18 +5590,7 @@ var b2Contact = Box2D.inherit({
       this.Evaluate();
       touching = this.m_manifold.m_pointCount > 0;
       for (var i = 0; i < this.m_manifold.m_pointCount; ++i) {
-        var mp2 = this.m_manifold.m_points[i];
-        mp2.m_normalImpulse = 0;
-        mp2.m_tangentImpulse = 0;
-        var id2 = mp2.id;
-        for (var j = 0; j < this.m_oldManifold.m_pointCount; ++j) {
-          var mp1 = this.m_oldManifold.m_points[j];
-          if (mp1.id.key == id2.key) {
-            mp2.m_normalImpulse = mp1.m_normalImpulse;
-            mp2.m_tangentImpulse = mp1.m_tangentImpulse;
-            break;
-          }
-        }
+        this._update_non_sensor_inner(this.m_manifold.m_points[i]);
       }
     } else {
       this.m_manifold.m_pointCount = 0;
