@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+var maxItems = 500;
+
 function MixerTest(ballFixture) {
   //final FixtureDef _ballFixture;
   this._ballFixture = ballFixture;
@@ -132,27 +134,32 @@ MixerTest.prototype.step = function(timeStamp) {
       this._stepTimeRunningAverage += delta;
     }
   }
+  if (this._bouncers.length < maxItems
+    && (!this._lastAdd || timeStamp - this._lastAdd > 60)) { // 3 frames
+    this._lastAdd = timeStamp;
+    this._addItem();
+  }
 
   //assert(_stepTimes.length <= _QUEUE_SIZE);
 
-  var avgframe = 0;
-  if (this._stepTimes.length > 0) {
-    avgframe = this._stepTimeRunningAverage / this._stepTimes.length;
-    if (avgframe < 17) {
-      this._fastFrameCount++;
-      if (this._fastFrameCount > 5) {
-        this._fastFrameCount = 0;
-        this._addItem();
-      }
-    } else if (avgframe > 18) {
-      this._fastFrameCount = 0;
-      if (this._bouncers.length > 1) {
-        this.world.DestroyBody(this._bouncers.shift());
-      }
-    } else {
-      this._fastFrameCount = 0;
-    }
-  }
+  // var avgframe = 0;
+  // if (this._stepTimes.length > 0) {
+  //   avgframe = this._stepTimeRunningAverage / this._stepTimes.length;
+  //   if (avgframe < 17) {
+  //     this._fastFrameCount++;
+  //     if (this._fastFrameCount > 5) {
+  //       this._fastFrameCount = 0;
+  //       this._addItem();
+  //     }
+  //   } else if (avgframe > 18) {
+  //     this._fastFrameCount = 0;
+  //     if (this._bouncers.length > 1) {
+  //       this.world.DestroyBody(this._bouncers.shift());
+  //     }
+  //   } else {
+  //     this._fastFrameCount = 0;
+  //   }
+  // }
 
   // XXX is this how you call super.step in JS?
   Demo.prototype.step.call(this, timeStamp);
